@@ -1,0 +1,9 @@
+## Interface: 30300
+## Title: rainRep
+## Author: Rainrider
+## Notes: Prints better reps
+
+## X-Credits: Nirek, Silverwind, dridzt
+
+
+rainRep.lua
