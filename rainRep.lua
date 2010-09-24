@@ -1,5 +1,11 @@
 local debug = true
 
+local redColor = "|cffff0000"
+local greenColor = "|cff00ff00"
+local yellowColor = "|cffffff00"
+
+local coloredAddonName = "|cff0099CCrainRep:|r "
+
 local factionVars = {}
 
 local standingMaxID = 8
@@ -58,41 +64,44 @@ function rainRep:Report()
 			
 			if (diff ~= 0) then
 				if (standingID ~= factionVars[name].standing) then
-					local standingText = _G["FACTION_STANDING_LABEL"..standingID]
-					local message = "You are now "..standingText.." with "..self:GetStandingColor(standingID)..name.."|r."
-					DEFAULT_CHAT_FRAME:AddMessage(message)
+					local standingText = _G["FACTION_STANDING_LABEL" .. standingID]
+					local message = "You are now " .. standingText .. " with " .. self:GetStandingColoredName(standingID, name) .. "."
+					self:Print(message)
 				end
 				
-				local nextStanding, remaining, sign
-				local message = "|cffff7831rainRep:|r "
+				local nextStanding, remaining, sign, changeColor
 				
 				if (diff > 0) then -- reputation gain
 					remaining = barMax - barValue
 					sign = "+"
+					changeColor = greenColor
 					
 					if (standingID < standingMaxID) then
-						nextStanding = self:GetStandingColor(standingID + 1).._G["FACTION_STANDING_LABEL"..standingID + 1].."|r"
+						nextStanding = self:GetStandingColoredName(standingID + 1, _G["FACTION_STANDING_LABEL" .. standingID + 1])
 					else
-						nextStanding = " the end of "..self:GetStandingColor(standingMaxID).._G["FACTION_STANDING_LEVEL"..standingMaxID].."|r."
+						nextStanding = " the end of " .. self:GetStandingColoredName(standingMaxID, _G["FACTION_STANDING_LEVEL" .. standingMaxID])
 					end
 				else -- reputaion loss
 					remaining = barValue - barMin
 					sign = "-"
+					changeColor = redColor
 					
 					if (standingID > standingMinID) then
-						nextStanding = self:GetStandingColor(standingID - 1).._G["FACTION_STANDING_LABEL"..standingID - 1].."|r"
+						nextStanding = self:GetStandingColoredName(standingID - 1, _G["FACTION_STANDING_LABEL" .. standingID - 1])
 					else
-						nextStanding = " the beginning of "..self:GetStandingColor(standingMinID).._G["FACTION_STANDING_LEVEL"..standingMinID].."|r."
+						nextStanding = " the beginning of " .. self:GetStandingColoredName(standingMinID, _G["FACTION_STANDING_LEVEL" .. standingMinID])
 					end
 				end
+				
+				
 				
 				-- calculate repetitions
 				local change = math.abs(diff)
 				local repetitions = math.ceil(remaining / change)
-				message = message..self:GetStandingColor(standingID)..name.."|r "..sign..change..". "..repetitions.." repetitions until "..nextStanding.."."
 				
-				-- rainRep: RepName +15. 150 repetitions until nextstanding
-				DEFAULT_CHAT_FRAME:AddMessage(message)
+				-- rainRep: RepName +15. 150 (10 repetitions) until nextstanding
+				local message = self:GetStandingColoredName(standingID, name).. " " .. changeColor .. sign .. change .. "|r. ".. remaining .. " (" .. repetitions .. " repetitions) until " .. nextStanding .. "."
+				self:Print(message)
 				
 				factionVars[name].standing = standingID
 				factionVars[name].value = barValue
@@ -101,27 +110,31 @@ function rainRep:Report()
 	end
 end
 
-function rainRep:GetStandingColor(standingID)
+function rainRep:GetStandingColoredName(standingID, name)
 	local color = FACTION_BAR_COLORS[standingID]
-	return string.format("|cff%02x%02x%02x", color.r * 255, color.g * 255, color.b * 255)
+	return string.format("|cff%02x%02x%02x%s|r", color.r * 255, color.g * 255, color.b * 255, name)
 end
 
 function rainRep.Command(str, editbox)
 	if (str == "factions") then
 		local i = 0
 		for k, v in pairs(factionVars) do
-			DEFAULT_CHAT_FRAME:AddMessage("key: "..k)
+			rainRep:Print("key: " .. k)
 			i = i + 1
 		end
-		print("|cffff7831rainRep: ".."Number of factions: "..i)
+		rainRep:Print("Number of factions: " .. i)
 	else
-		DEFAULT_CHAT_FRAME:AddMessage("|cffff7831rainRep: ".."Unknown command: "..str)
+		rainRep:Print(redColor .. "Unknown command:|r " .. str)
 	end
 end
 
 function rainRep:Debug(...)
-	local str = tostring(...)
 	if (debug) then
-		print("|cffff7831rainRep debug:|r "..str)
+		print(coloredAddonName .. redColor .. "debug:|r ", ...)
 	end
+end
+
+function rainRep:Print(...)
+	local str = tostring(...)
+	DEFAULT_CHAT_FRAME:AddMessage(coloredAddonName..str)
 end
