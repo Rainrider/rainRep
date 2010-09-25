@@ -30,15 +30,13 @@ function rainRep:ADDON_LOADED(event, name)
 	end
 end
 
-function rainRep:PLAYER_ENTERING_WORLD() -- TODO: sometimes the reps are not available at this. PLAYER_ALIVE is the next event on the list but it sucks
-	-- scan factions and put them in factionVars
+function rainRep:PLAYER_ENTERING_WORLD()
 	self:ScanFactions()
-	
-	-- register events
 	self:RegisterEvent("UPDATE_FACTION")
 end
 
 function rainRep:UPDATE_FACTION()
+	self:Debug("UPDATE_FACTION fired. Args: ")
 	self:Report()
 end
 
@@ -79,7 +77,7 @@ function rainRep:Report()
 					if (standingID < standingMaxID) then
 						nextStanding = self:GetStandingColoredName(standingID + 1, _G["FACTION_STANDING_LABEL" .. standingID + 1])
 					else
-						nextStanding = " the end of " .. self:GetStandingColoredName(standingMaxID, _G["FACTION_STANDING_LEVEL" .. standingMaxID])
+						nextStanding = "the end of " .. self:GetStandingColoredName(standingMaxID, _G["FACTION_STANDING_LABEL" .. standingMaxID])
 					end
 				else -- reputaion loss
 					remaining = barValue - barMin
@@ -89,7 +87,7 @@ function rainRep:Report()
 					if (standingID > standingMinID) then
 						nextStanding = self:GetStandingColoredName(standingID - 1, _G["FACTION_STANDING_LABEL" .. standingID - 1])
 					else
-						nextStanding = " the beginning of " .. self:GetStandingColoredName(standingMinID, _G["FACTION_STANDING_LEVEL" .. standingMinID])
+						nextStanding = "the beginning of " .. self:GetStandingColoredName(standingMinID, _G["FACTION_STANDING_LABEL" .. standingMinID])
 					end
 				end
 				
@@ -122,6 +120,7 @@ function rainRep.Command(str, editbox)
 			rainRep:Print("key: " .. k)
 			i = i + 1
 		end
+		-- TODO: #factionVars returns 0 ???
 		rainRep:Print("Number of factions: " .. i)
 	else
 		rainRep:Print(redColor .. "Unknown command:|r " .. str)
