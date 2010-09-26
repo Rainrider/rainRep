@@ -1,5 +1,7 @@
 local debug = true
 
+local updateCounter = 0
+
 local redColor = "|cffff0000"
 local greenColor = "|cff00ff00"
 local yellowColor = "|cffffff00"
@@ -26,18 +28,23 @@ function rainRep:ADDON_LOADED(event, name)
 		--factionsSV = factionsSV or {}
 		
 		-- events
-		self:RegisterEvent("PLAYER_ENTERING_WORLD")
+		self:RegisterEvent("UPDATE_FACTION")
 	end
 end
 
-function rainRep:PLAYER_ENTERING_WORLD()
-	self:ScanFactions()
-	self:RegisterEvent("UPDATE_FACTION")
-end
-
+-- NOTES: at login UPDATE_FACTION fires once before PLAYER_ENTERING_WORLD and twice after it after login and reloadui.
+--			Reps are only available after the player has entered the world, so doing the factions scan at the second time is always safe
 function rainRep:UPDATE_FACTION()
-	self:Debug("UPDATE_FACTION fired. Args: ")
-	self:Report()
+	self:Debug("UPDATE_FACTION fired.")
+	if (updateCounter < 3) then
+		updateCounter = updateCounter + 1
+	end
+	self:Debug("update counter: " .. tostring(updateCounter))
+	if (updateCounter == 2) then
+		self:ScanFactions()
+	else
+		self:Report()
+	end
 end
 
 function rainRep:ScanFactions()
