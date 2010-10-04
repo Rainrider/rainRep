@@ -1,0 +1,101 @@
+Argent Dawn: 529
+Bloodsail Buccaneers: 87
+Booty Bay: 21
+Brood of Nozdormu: 910
+Cenarion Circle: 609
+Darkmoon Faire: 909
+Darkspear Trolls: 530
+Darnassus: 69
+Everlook: 577
+Frostwolf Clan: 729
+Gadgetzan: 369
+Gelkis Clan Centaur: 92
+Gnomeregan Exiles: 54
+Hydraxian Waterlords: 749
+Ironforge: 47
+Magram Clan Centaur: 93
+Orgrimmar: 76
+Ratchet: 470
+Ravenholdt: 349
+Shen'dralar: 809
+Silverwing Sentinels: 890
+Stormpike Guard: 730
+Stormwind: 72
+Syndicate: 70
+The Defilers: 510
+The League of Arathor: 509
+Thorium Brotherhood: 59
+Thunderbluff: 81
+Timbermaw Hold: 576
+Undercity: 68
+Warsong Outriders: 889
+Wintersaber Trainers: 589
+Zandalar Tribe: 270 
+
+
+--
+Burning Crusade Faction:
+--
+Ashtongue Deathsworn: 1012
+Cenarion Expedition: 942
+Exodar: 930
+Honor Hold: 946
+Keepers of Time: 989
+Kurenai: 978
+Lower City: 1011
+Netherwing: 1015
+Ogri'la: 1038
+Sha'tari Skyguard: 1031
+Shattered Sun Offensive: 1077
+Silvermoon City: 911
+Sporeggar: 970
+The Aldor: 932
+The Consortium: 933
+The Mag'har: 941
+The Scale of the Sands: 990
+The Scryers: 934
+The Sha'tar: 935
+The Violet Eye: 967
+Thrallmar: 947
+Tranquillien: 922
+
+--
+WOTLK Factions:
+--
+Alliance Vanguard: 1037
+Argent Crusade: 1106
+Explorers' League: 1068
+Frenzyheart Tribe: 1104
+Horde Expedition: 1052
+Kirin Tor: 1090
+Knights of the Ebon Blade: 1098
+The Ashen Verdict: 1156
+The Frostborn: 1126
+The Hand of Vengeance: 1067
+The Kalu'ak: 1073
+The Oracles: 1105
+The Silver Convenant: 1094
+The Sons of Hodir: 1119
+The Sunreavers: 1124
+The Taunka: 1064
+The Wyrmrest Accord: 1091
+Valiance Expedition: 1050
+Warsong Offencive: 1085
+
+--
+Cataclysm Factions:
+--
+Baradin's Wardens: 1177
+Bilgewater Cartel: 1133
+Dragonmaw Clan: 1172
+gilneas: 1134
+Guardians of Hyjal: 1158
+Hellscream's Reach: 1178
+Ramkahen: 1173
+The Earthen Ring: 1135
+Therazane: 1171
+Wildhammer Clan: 1174
+
+
+
+

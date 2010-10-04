@@ -1,6 +1,12 @@
 local debug = true
 
 local updateCounter = 0
+local numFactions = 0
+
+local format = string.format
+local abs = math.abs
+local ceil = math.ceil
+local GetFactionInfo = GetFactionInfo
 
 local redColor = "|cffff0000"
 local greenColor = "|cff00ff00"
@@ -32,30 +38,28 @@ function rainRep:ADDON_LOADED(event, name)
 	end
 end
 
--- NOTES: at login UPDATE_FACTION fires once before PLAYER_ENTERING_WORLD and twice after it after login and reloadui.
---			Reps are only available after the player has entered the world, so doing the factions scan at the second time is always safe
+-- NOTES: UPDATE_FACTION fires 3 times after login and twice after reloadui. Reps are available from the 2nd fire after login and the 1st after reloadui.
 function rainRep:UPDATE_FACTION()
-	self:Debug("UPDATE_FACTION fired.")
 	if (updateCounter < 3) then
 		updateCounter = updateCounter + 1
 	end
-	self:Debug("update counter: " .. tostring(updateCounter))
-	if (updateCounter == 2) then
-		self:ScanFactions()
-	else
+
+	if (updateCounter > 2) then
 		self:Report()
+	elseif (updateCounter == 2) then
+		self:ScanFactions()
 	end
 end
 
+-- we need the headers too in order to catch new factions in Report()
 function rainRep:ScanFactions()
 	for i = 1, GetNumFactions() do
-		local name, _, standingID, _, _, barValue, _, _, isHeader, _, hasRep = GetFactionInfo(i)
-		
-		if (not isHeader or hasRep) then
-			factionVars[name] = {}
-			factionVars[name].standing = standingID
-			factionVars[name].value = barValue
-		end
+		local name, _, standingID, _, _, barValue = GetFactionInfo(i)
+
+		numFactions = numFactions + 1
+		factionVars[name] = {}
+		factionVars[name].standing = standingID
+		factionVars[name].value = barValue
 	end
 	self:Debug("Scanning factions done.")
 end
@@ -101,11 +105,11 @@ function rainRep:Report()
 				
 				
 				-- calculate repetitions
-				local change = math.abs(diff)
-				local repetitions = math.ceil(remaining / change)
+				local change = abs(diff)
+				local repetitions = ceil(remaining / change)
 				
-				-- rainRep: RepName +15. 150 (10 repetitions) until nextstanding
-				local message = self:GetStandingColoredName(standingID, name).. " " .. changeColor .. sign .. change .. "|r. ".. remaining .. " (" .. repetitions .. " repetitions) until " .. nextStanding .. "."
+				-- rainRep: RepName +15. 150 more to nextstanding (10 repetitions)
+				local message = format("%s %s%+d|r. %d more to %s (%d repetitions)", self:GetStandingColoredName(standingID, name), changeColor, diff, remaining, nextStanding, repetitions)
 				self:Print(message)
 				
 				factionVars[name].standing = standingID
@@ -113,11 +117,16 @@ function rainRep:Report()
 			end
 		end
 	end
+	
+	if (GetNumFactions() > numFactions) then
+		self:Debug("New faction encountered.")
+		self:ScanFactions()
+	end
 end
 
 function rainRep:GetStandingColoredName(standingID, name)
 	local color = FACTION_BAR_COLORS[standingID]
-	return string.format("|cff%02x%02x%02x%s|r", color.r * 255, color.g * 255, color.b * 255, name)
+	return format("|cff%02x%02x%02x%s|r", color.r * 255, color.g * 255, color.b * 255, name)
 end
 
 function rainRep.Command(str, editbox)
@@ -142,5 +151,5 @@ end
 
 function rainRep:Print(...)
 	local str = tostring(...)
-	DEFAULT_CHAT_FRAME:AddMessage(coloredAddonName..str)
+	DEFAULT_CHAT_FRAME:AddMessage(str)
 end
