@@ -1,3 +1,0 @@
-Upon encountering a new faction, CHAT_MSG_SYSTEM is fired with its first argument being GlobalStrings.lua[FACTION_STANDING_CHANGED].
-
-TODO: disable rep changes for chat and look it this still apears. It should be. Then we dont need a message, just a rescan upon CHAT_MSG_SYSTEM if arg1 is FACTION_STANDING_CHANGED
