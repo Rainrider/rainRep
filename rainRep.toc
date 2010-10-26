@@ -1,7 +1,9 @@
-## Interface: 30300
+## Interface: 40000
 ## Title: rainRep
 ## Author: Rainrider
 ## Notes: Prints better reps
+
+## SavedVariablesPerCharacter: instanceChangeList, args
 
 ## X-Credits: Nirek, Silverwind, dridzt
 

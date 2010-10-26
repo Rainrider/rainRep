@@ -1,5 +1,7 @@
 local debug = true
 
+local standingMaxID = 8
+local standingMinID = 1
 local updateCounter = 0
 local numFactions = 0
 
@@ -14,10 +16,28 @@ local yellowColor = "|cffffff00"
 
 local coloredAddonName = "|cff0099CCrainRep:|r "
 
-local factionVars = {}
-
-local standingMaxID = 8
-local standingMinID = 1
+local factionList = {}
+local defaultDB = {
+	prevLoc = "world",
+	currLoc = "world",
+	prevName = "",
+	currName = "",
+	playerWasDead = false,
+	instanceGainList = {},
+}
+local metaPrint = {
+	__tostring = function(tbl)
+		local str = ""
+		if (not next(tbl)) then -- "if (not next(tbl))" should tell whether the table is empty
+			return "Table is empty"
+		end
+		for k, v in pairs(tbl) do
+			str = str .. k .. ": " .. tostring(v) .. "\n"
+		end
+		
+		return str
+	end,
+}
 
 local rainRep = CreateFrame("Frame", "rainRep", UIParent)
 rainRep:SetScript("OnEvent", function(self, event, ...) self[event](self, event, ...) end)
@@ -31,11 +51,39 @@ function rainRep:ADDON_LOADED(event, name)
 		SlashCmdList[name] = self.Command
 	
 		-- set saved variables
-		--factionsSV = factionsSV or {}
+		rainRepDB = rainRepDB or defaultDB
+		rainRepDB = setmetatable(rainRepDB, metaPrint)
+		rainRepDB.instanceGainList = setmetatable(rainRepDB.instanceGainList, metaPrint)
 		
 		-- events
+		self:RegisterEvent("PLAYER_ENTERING_WORLD")
 		self:RegisterEvent("UPDATE_FACTION")
 	end
+end
+
+-- TODO: this won't be cool if we wipe and corpse run into the instance as it would ReportInstanceGain() and wipe the table
+--		maybe PLAYER_ALIVE or check for zones and whether player is alive before reporting and wiping
+function rainRep:PLAYER_ENTERING_WORLD()
+	local name, locType = GetInstanceInfo()
+	
+	rainRepDB.prevLoc = rainRepDB.currLoc
+	rainRepDB.prevName = rainRepDB.currName
+	rainRepDB.currName = name
+	
+	if locType == "raid" or locType == "party" then
+		rainRepDB.currLoc = "instance"
+	else
+		rainRepDB.currLoc = "world"
+	end
+	
+	-- wipe instanceGainList in case the player did a spirit rezz after an instance and then entered a new one
+	if (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "world" and not rainRepDB.playerWasDead) then
+		self:Debug("instanceGainList wiped upon entering the world")
+		rainRepDB.instanceGainList = {}
+		rainRepDB.playerWasDead = false
+	end
+	
+	self:ReportInstanceGain(rainRepDB.prevName)
 end
 
 -- NOTES: UPDATE_FACTION fires 3 times after login and twice after reloadui. Reps are available from the 2nd fire after login and the 1st after reloadui.
@@ -57,9 +105,9 @@ function rainRep:ScanFactions()
 		local name, _, standingID, _, _, barValue = GetFactionInfo(i)
 
 		numFactions = numFactions + 1
-		factionVars[name] = {}
-		factionVars[name].standing = standingID
-		factionVars[name].value = barValue
+		factionList[name] = {}
+		factionList[name].standing = standingID
+		factionList[name].value = barValue
 	end
 	self:Debug("Scanning factions done.")
 end
@@ -68,21 +116,24 @@ function rainRep:Report()
 	for i = 1, GetNumFactions() do
 		local name, _, standingID, barMin, barMax, barValue, _, _, isHeader, _, hasRep = GetFactionInfo(i) -- TODO: handle hasRep = header with rep info (i.e. Alliance Vanguard)
 		
-		if ((not isHeader or hasRep) and factionVars[name]) then
-			local diff = barValue - factionVars[name].value
+		if ((not isHeader or hasRep) and factionList[name]) then
+			local diff = barValue - factionList[name].value
 			
 			if (diff ~= 0) then
-				if (standingID ~= factionVars[name].standing) then
+				if (rainRepDB.currLoc == "instance") then
+					self:InstanceGain(name, diff)
+				end
+			
+				if (standingID ~= factionList[name].standing) then
 					local standingText = _G["FACTION_STANDING_LABEL" .. standingID]
 					local message = "You are now " .. standingText .. " with " .. self:GetStandingColoredName(standingID, name) .. "."
 					self:Print(message)
 				end
 				
-				local nextStanding, remaining, sign, changeColor
+				local nextStanding, remaining, changeColor
 				
 				if (diff > 0) then -- reputation gain
 					remaining = barMax - barValue
-					sign = "+"
 					changeColor = greenColor
 					
 					if (standingID < standingMaxID) then
@@ -92,7 +143,6 @@ function rainRep:Report()
 					end
 				else -- reputaion loss
 					remaining = barValue - barMin
-					sign = "-"
 					changeColor = redColor
 					
 					if (standingID > standingMinID) then
@@ -108,12 +158,12 @@ function rainRep:Report()
 				local change = abs(diff)
 				local repetitions = ceil(remaining / change)
 				
-				-- rainRep: RepName +15. 150 more to nextstanding (10 repetitions)
+				-- RepName +15. 150 more to nextstanding (10 repetitions)
 				local message = format("%s %s%+d|r. %d more to %s (%d repetitions)", self:GetStandingColoredName(standingID, name), changeColor, diff, remaining, nextStanding, repetitions)
 				self:Print(message)
 				
-				factionVars[name].standing = standingID
-				factionVars[name].value = barValue
+				factionList[name].standing = standingID
+				factionList[name].value = barValue
 			end
 		end
 	end
@@ -129,15 +179,55 @@ function rainRep:GetStandingColoredName(standingID, name)
 	return format("|cff%02x%02x%02x%s|r", color.r * 255, color.g * 255, color.b * 255, name)
 end
 
+function rainRep:InstanceGain(repName, diff)
+	local match = false
+	for k, v in pairs(rainRepDB.instanceGainList) do
+		if (k == repName) then
+			rainRepDB.instanceGainList[k] = v + diff
+			match = true
+			break -- exit the loop since we have a match
+		end
+	end
+	
+	if (not match) then
+		rainRepDB.instanceGainList[repName] = diff
+	end
+end
+
+-- not UnitIsDeadOrGhost("player") to not wipe instanceGainList if we corpse run into an instance again
+-- TODO: add slash command to report and wipe if player desides to spirit rezz
+--		we must wipe instanceGainList before next instance run if player forgot to do it
+function rainRep:ReportInstanceGain(instanceName)
+	local playerDead = UnitIsDeadOrGhost("player")
+	
+	if (rainRepDB.currLoc == "world" and rainRepDB.prevLoc == "instance" and playerDead == 1) then
+		self:Debug("Player is dead. No report, no table wipe")
+		rainRepDB.playerWasDead = true
+	elseif (rainRepDB.prevLoc == "instance" and not playerDead) then
+		self:Print(coloredAddonName .. "Reputation changes in " .. instanceName .. ":")
+		self:Print(rainRepDB.instanceGainList)
+		--rainRepDB.instanceGainList = {}
+	end
+end
+
 function rainRep.Command(str, editbox)
 	if (str == "factions") then
 		local i = 0
-		for k, v in pairs(factionVars) do
-			rainRep:Print("key: " .. k)
+		for k, v in pairs(factionList) do
+			rainRep:Print(k)
 			i = i + 1
 		end
-		-- TODO: #factionVars returns 0 ???
 		rainRep:Print("Number of factions: " .. i)
+	elseif (str == "report") then
+		rainRep:Print(rainRepDB.instanceGainList)
+		for k, v in pairs(rainRepDB.instanceGainList) do
+			rainRep:Print(k .. ": " .. v)
+		end
+	elseif (str == "db") then
+		rainRep:Print(rainRepDB)
+	elseif (str == "reset") then
+		rainRepDB.instanceGainList = {}
+		rainRepDB = defaultDB
 	else
 		rainRep:Print(redColor .. "Unknown command:|r " .. str)
 	end
