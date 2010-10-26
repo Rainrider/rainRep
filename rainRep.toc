@@ -3,7 +3,7 @@
 ## Author: Rainrider
 ## Notes: Prints better reps
 
-## SavedVariablesPerCharacter: instanceChangeList, args
+## SavedVariablesPerCharacter: rainRepDB
 
 ## X-Credits: Nirek, Silverwind, dridzt
 
