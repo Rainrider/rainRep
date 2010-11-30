@@ -58,11 +58,11 @@ function rainRep:ADDON_LOADED(event, name)
 		-- events
 		self:RegisterEvent("PLAYER_ENTERING_WORLD")
 		self:RegisterEvent("UPDATE_FACTION")
+		-- does unregestering ADDON_LOADED get us something?
 	end
 end
 
--- TODO: this won't be cool if we wipe and corpse run into the instance as it would ReportInstanceGain() and wipe the table
---		maybe PLAYER_ALIVE or check for zones and whether player is alive before reporting and wiping
+
 function rainRep:PLAYER_ENTERING_WORLD()
 	local name, locType = GetInstanceInfo()
 	
@@ -76,14 +76,20 @@ function rainRep:PLAYER_ENTERING_WORLD()
 		rainRepDB.currLoc = "world"
 	end
 	
+	self:ReportInstanceGain(rainRepDB.prevName)
+	
 	-- wipe instanceGainList in case the player did a spirit rezz after an instance and then entered a new one
 	if (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "world" and not rainRepDB.playerWasDead) then
-		self:Debug("instanceGainList wiped upon entering the world")
+		self:Debug("instanceGainList wiped upon entering a dungeon")
 		rainRepDB.instanceGainList = {}
 		rainRepDB.playerWasDead = false
 	end
 	
-	self:ReportInstanceGain(rainRepDB.prevName)
+	-- wipe instanceGainList if we join a new dungeon from the current dungeon
+	if (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "instance" and prevName ~= currName) then
+		self:Debug("instanceGainList wiped upon entering a dungeon")
+		rainRepDB.instanceGainList = {}
+	end
 end
 
 -- NOTES: UPDATE_FACTION fires 3 times after login and twice after reloadui. Reps are available from the 2nd fire after login and the 1st after reloadui.
@@ -159,7 +165,7 @@ function rainRep:Report()
 				local repetitions = ceil(remaining / change)
 				
 				-- RepName +15. 150 more to nextstanding (10 repetitions)
-				local message = format("%s %s%+d|r. %d more to %s (%d repetitions)", self:GetStandingColoredName(standingID, name), changeColor, diff, remaining, nextStanding, repetitions)
+				local message = format("%s%+d|r %s. %d more to %s (%d repetitions)", changeColor, diff, self:GetStandingColoredName(standingID, name), remaining, nextStanding, repetitions)
 				self:Print(message)
 				
 				factionList[name].standing = standingID
@@ -195,8 +201,7 @@ function rainRep:InstanceGain(repName, diff)
 end
 
 -- not UnitIsDeadOrGhost("player") to not wipe instanceGainList if we corpse run into an instance again
--- TODO: add slash command to report and wipe if player desides to spirit rezz
---		we must wipe instanceGainList before next instance run if player forgot to do it
+-- TODO: we need a case when we join a new gungeon from an old one
 function rainRep:ReportInstanceGain(instanceName)
 	local playerDead = UnitIsDeadOrGhost("player")
 	
@@ -228,6 +233,7 @@ function rainRep.Command(str, editbox)
 	elseif (str == "reset") then
 		rainRepDB.instanceGainList = {}
 		rainRepDB = defaultDB
+		rainRep:Print(coloredAddonName .. "Database reset.")
 	else
 		rainRep:Print(redColor .. "Unknown command:|r " .. str)
 	end
