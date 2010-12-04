@@ -27,6 +27,7 @@ local defaultDB = {
 }
 local metaPrint = {
 	__tostring = function(tbl)
+		rainRep:Debug("meta print")
 		local str = ""
 		if (not next(tbl)) then -- "if (not next(tbl))" should tell whether the table is empty
 			return "Table is empty"
@@ -81,14 +82,14 @@ function rainRep:PLAYER_ENTERING_WORLD()
 	-- wipe instanceGainList in case the player did a spirit rezz after an instance and then entered a new one
 	if (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "world" and not rainRepDB.playerWasDead) then
 		self:Debug("instanceGainList wiped upon entering a dungeon")
-		rainRepDB.instanceGainList = {}
+		table.wipe(rainRepDB.instanceGainList)
 		rainRepDB.playerWasDead = false
 	end
 	
 	-- wipe instanceGainList if we join a new dungeon from the current dungeon
 	if (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "instance" and prevName ~= currName) then
 		self:Debug("instanceGainList wiped upon entering a dungeon")
-		rainRepDB.instanceGainList = {}
+		table.wipe(rainRepDB.instanceGainList)
 	end
 end
 
@@ -201,7 +202,6 @@ function rainRep:InstanceGain(repName, diff)
 end
 
 -- not UnitIsDeadOrGhost("player") to not wipe instanceGainList if we corpse run into an instance again
--- TODO: we need a case when we join a new gungeon from an old one
 function rainRep:ReportInstanceGain(instanceName)
 	local playerDead = UnitIsDeadOrGhost("player")
 	
@@ -211,7 +211,7 @@ function rainRep:ReportInstanceGain(instanceName)
 	elseif (rainRepDB.prevLoc == "instance" and not playerDead) then
 		self:Print(coloredAddonName .. "Reputation changes in " .. instanceName .. ":")
 		self:Print(rainRepDB.instanceGainList)
-		--rainRepDB.instanceGainList = {}
+		--wipe(rainRepDB.instanceGainList)
 	end
 end
 
@@ -231,7 +231,7 @@ function rainRep.Command(str, editbox)
 	elseif (str == "db") then
 		rainRep:Print(rainRepDB)
 	elseif (str == "reset") then
-		rainRepDB.instanceGainList = {}
+		table.wipe(rainRepDB.instanceGainList)
 		rainRepDB = defaultDB
 		rainRep:Print(coloredAddonName .. "Database reset.")
 	else
