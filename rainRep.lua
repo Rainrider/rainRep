@@ -1,3 +1,6 @@
+local _, ns = ...
+local L = ns.L
+
 local debug = true
 
 local standingMaxID = 8
@@ -121,7 +124,7 @@ end
 
 function rainRep:Report()
 	for i = 1, GetNumFactions() do
-		local name, _, standingID, barMin, barMax, barValue, _, _, isHeader, _, hasRep = GetFactionInfo(i) -- TODO: handle hasRep = header with rep info (i.e. Alliance Vanguard)
+		local name, _, standingID, barMin, barMax, barValue, _, _, isHeader, _, hasRep = GetFactionInfo(i)
 		
 		if ((not isHeader or hasRep) and factionList[name]) then
 			local diff = barValue - factionList[name].value
@@ -133,7 +136,8 @@ function rainRep:Report()
 			
 				if (standingID ~= factionList[name].standing) then
 					local standingText = _G["FACTION_STANDING_LABEL" .. standingID]
-					local message = "You are now " .. standingText .. " with " .. self:GetStandingColoredName(standingID, name) .. "."
+					local message = format(_G["FACTION_STANDING_CHANGED"], standingText, self:GetStandingColoredName(standingID, name))
+					--local message = "You are now " .. standingText .. " with " .. self:GetStandingColoredName(standingID, name) .. "."
 					self:Print(message)
 				end
 				
@@ -146,7 +150,7 @@ function rainRep:Report()
 					if (standingID < standingMaxID) then
 						nextStanding = self:GetStandingColoredName(standingID + 1, _G["FACTION_STANDING_LABEL" .. standingID + 1])
 					else
-						nextStanding = "the end of " .. self:GetStandingColoredName(standingMaxID, _G["FACTION_STANDING_LABEL" .. standingMaxID])
+						nextStanding = L["the end of"] .. " " .. self:GetStandingColoredName(standingMaxID, _G["FACTION_STANDING_LABEL" .. standingMaxID])
 					end
 				else -- reputaion loss
 					remaining = barValue - barMin
@@ -155,7 +159,7 @@ function rainRep:Report()
 					if (standingID > standingMinID) then
 						nextStanding = self:GetStandingColoredName(standingID - 1, _G["FACTION_STANDING_LABEL" .. standingID - 1])
 					else
-						nextStanding = "the beginning of " .. self:GetStandingColoredName(standingMinID, _G["FACTION_STANDING_LABEL" .. standingMinID])
+						nextStanding = L["the beginning of"] .. " " .. self:GetStandingColoredName(standingMinID, _G["FACTION_STANDING_LABEL" .. standingMinID])
 					end
 				end
 				
@@ -165,8 +169,8 @@ function rainRep:Report()
 				local change = abs(diff)
 				local repetitions = ceil(remaining / change)
 				
-				-- RepName +15. 150 more to nextstanding (10 repetitions)
-				local message = format("%s%+d|r %s. %d more to %s (%d repetitions)", changeColor, diff, self:GetStandingColoredName(standingID, name), remaining, nextStanding, repetitions)
+				-- +15 RepName. 150 more to nextstanding (10 repetitions)
+				local message = format("%s%+d|r %s. %d %s %s (%d %s)", changeColor, diff, self:GetStandingColoredName(standingID, name), remaining, L["more to"], nextStanding, repetitions, L["repetitions"])
 				self:Print(message)
 				
 				factionList[name].standing = standingID
@@ -209,7 +213,7 @@ function rainRep:ReportInstanceGain(instanceName)
 		self:Debug("Player is dead. No report, no table wipe")
 		rainRepDB.playerWasDead = true
 	elseif (rainRepDB.prevLoc == "instance" and not playerDead) then
-		self:Print(coloredAddonName .. "Reputation changes in " .. instanceName .. ":")
+		self:Print(coloredAddonName .. L["Reputation changes in"] .. " " .. instanceName .. ":")
 		self:Print(rainRepDB.instanceGainList)
 		--wipe(rainRepDB.instanceGainList)
 	end
@@ -233,9 +237,19 @@ function rainRep.Command(str, editbox)
 	elseif (str == "reset") then
 		table.wipe(rainRepDB.instanceGainList)
 		rainRepDB = defaultDB
-		rainRep:Print(coloredAddonName .. "Database reset.")
+		rainRepDB = setmetatable(rainRepDB, metaPrint)
+		rainRepDB.instanceGainList = setmetatable(rainRepDB.instanceGainList, metaPrint)
+		rainRep:Print(coloredAddonName .. L["Database reset."])
+	elseif (str == "debug") then
+		if (debug) then
+			debug = false
+			rainRep:Print(coloredAddonName .. L["Stopped debugging."])
+		else
+			debug = true
+			rainRep:Print(coloredAddonName .. L["Started debugging."])
+		end
 	else
-		rainRep:Print(redColor .. "Unknown command:|r " .. str)
+		rainRep:Print(redColor .. L["Unknown command:"] .."|r " .. str)
 	end
 end
 
