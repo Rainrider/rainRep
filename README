@@ -1,3 +1,4 @@
 .: Description :.
 	Prints a message to chat with your reputation gain/loss and the remaining repetitions until next standing
+	Prints information about total reputation gain/loss in a dungeon after leaving the dungeon
 	This is basicly Rep2 by Nirek without ace2
