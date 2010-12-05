@@ -10,6 +10,7 @@ local L = {
 	["Stopped debugging."] = "Stopped debugging.",
 	["Started debugging."] = "Started debugging.",
 	["Unknown command:"] = "Unknown command:",
+	["No reputation changes."] = "No reputation changes.",
 }
 local locale = GetLocale()
 
@@ -23,6 +24,7 @@ if locale == "deDE" then
 	L["Stopped debugging."] = "Debuggen angehalten."
 	L["Started debugging."] = "Debuggen gestartet."
 	L["Unknown command:"] = "Unbekannter Befehl:"
+	L["No reputation changes."] = "Keine Rufänderungen."
 end
 
 ns.L = L

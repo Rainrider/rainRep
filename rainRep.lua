@@ -1,7 +1,7 @@
-local _, ns = ...
-local L = ns.L
+local _, ns = ...	-- load the namespace
+local L = ns.L		-- load the localization table
 
-local debug = true
+local debug = false
 
 local standingMaxID = 8
 local standingMinID = 1
@@ -12,6 +12,7 @@ local format = string.format
 local abs = math.abs
 local ceil = math.ceil
 local GetFactionInfo = GetFactionInfo
+local GetNumFactions = GetNumFactions
 
 local redColor = "|cffff0000"
 local greenColor = "|cff00ff00"
@@ -30,10 +31,9 @@ local defaultDB = {
 }
 local metaPrint = {
 	__tostring = function(tbl)
-		rainRep:Debug("meta print")
 		local str = ""
 		if (not next(tbl)) then -- "if (not next(tbl))" should tell whether the table is empty
-			return "Table is empty"
+			return L["No reputation changes."]
 		end
 		for k, v in pairs(tbl) do
 			str = str .. k .. ": " .. tostring(v) .. "\n"
@@ -84,14 +84,12 @@ function rainRep:PLAYER_ENTERING_WORLD()
 	
 	-- wipe instanceGainList in case the player did a spirit rezz after an instance and then entered a new one
 	if (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "world" and not rainRepDB.playerWasDead) then
-		self:Debug("instanceGainList wiped upon entering a dungeon")
+		self:Debug("instanceGainList wiped upon entering a dungeon.")
 		table.wipe(rainRepDB.instanceGainList)
 		rainRepDB.playerWasDead = false
-	end
-	
 	-- wipe instanceGainList if we join a new dungeon from the current dungeon
-	if (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "instance" and prevName ~= currName) then
-		self:Debug("instanceGainList wiped upon entering a dungeon")
+	elseif (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "instance" and prevName ~= currName) then
+		self:Debug("instanceGainList wiped upon entering a dungeon from a dungeon.")
 		table.wipe(rainRepDB.instanceGainList)
 	end
 end
@@ -137,7 +135,6 @@ function rainRep:Report()
 				if (standingID ~= factionList[name].standing) then
 					local standingText = _G["FACTION_STANDING_LABEL" .. standingID]
 					local message = format(_G["FACTION_STANDING_CHANGED"], standingText, self:GetStandingColoredName(standingID, name))
-					--local message = "You are now " .. standingText .. " with " .. self:GetStandingColoredName(standingID, name) .. "."
 					self:Print(message)
 				end
 				
@@ -163,14 +160,16 @@ function rainRep:Report()
 					end
 				end
 				
-				
-				
 				-- calculate repetitions
 				local change = abs(diff)
 				local repetitions = ceil(remaining / change)
 				
+				-- TODO: 	3 table look-ups for message (2 in L, 1 in _G)
+				--			2-3 table look-ups for nextStanding (1 in L, 2 in _G)
+				--			and 2 more if we get a new standing (both in _G)
+				--			best case: 5 look-ups, worst case: 8 per single rep change
 				-- +15 RepName. 150 more to nextstanding (10 repetitions)
-				local message = format("%s%+d|r %s. %d %s %s (%d %s)", changeColor, diff, self:GetStandingColoredName(standingID, name), remaining, L["more to"], nextStanding, repetitions, L["repetitions"])
+				local message = format("%s%+d|r %s. %s%d|r %s %s (%d %s)", changeColor, diff, self:GetStandingColoredName(standingID, name), changeColor, remaining, L["more to"], nextStanding, repetitions, L["repetitions"])
 				self:Print(message)
 				
 				factionList[name].standing = standingID
@@ -220,18 +219,8 @@ function rainRep:ReportInstanceGain(instanceName)
 end
 
 function rainRep.Command(str, editbox)
-	if (str == "factions") then
-		local i = 0
-		for k, v in pairs(factionList) do
-			rainRep:Print(k)
-			i = i + 1
-		end
-		rainRep:Print("Number of factions: " .. i)
-	elseif (str == "report") then
+	if (str == "report") then
 		rainRep:Print(rainRepDB.instanceGainList)
-		for k, v in pairs(rainRepDB.instanceGainList) do
-			rainRep:Print(k .. ": " .. v)
-		end
 	elseif (str == "db") then
 		rainRep:Print(rainRepDB)
 	elseif (str == "reset") then
