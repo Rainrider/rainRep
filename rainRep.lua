@@ -1,7 +1,7 @@
 local _, ns = ...	-- load the namespace
 local L = ns.L		-- load the localization table
 
-local debug = true
+local debug = false
 
 local standingMaxID = 8
 local standingMinID = 1
