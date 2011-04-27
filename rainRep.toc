@@ -1,4 +1,4 @@
-## Interface: 40000
+## Interface: 40100
 ## Title: rainRep
 ## Version: Beta 1.0
 ## Author: Rainrider

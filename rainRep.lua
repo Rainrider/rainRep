@@ -1,7 +1,7 @@
 local _, ns = ...	-- load the namespace
 local L = ns.L		-- load the localization table
 
-local debug = false
+local debug = true
 
 local standingMaxID = 8
 local standingMinID = 1
@@ -69,7 +69,6 @@ function rainRep:ADDON_LOADED(event, name)
 		-- does unregestering ADDON_LOADED get us something?
 	end
 end
-
 
 function rainRep:PLAYER_ENTERING_WORLD()
 	local name, locType = GetInstanceInfo()
