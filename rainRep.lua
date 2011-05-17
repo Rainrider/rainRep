@@ -1,7 +1,7 @@
-local _, ns = ...	-- load the namespace
-local L = ns.L		-- load the localization table
+local addon, ns = ...	-- load the namespace
+local L = ns.L			-- load the localization table
 
-local debug = true
+local debug = false
 
 local standingMaxID = 8
 local standingMinID = 1
@@ -19,9 +19,6 @@ local greenColor = "|cff00ff00"
 local yellowColor = "|cffffff00"
 
 local coloredAddonName = "|cff0099CCrainRep:|r "
-
-local guildName = nil
-local guildChecked = false
 
 local factionList = {}
 local defaultDB = {
@@ -51,7 +48,7 @@ rainRep:SetScript("OnEvent", function(self, event, ...) self[event](self, event,
 rainRep:RegisterEvent("ADDON_LOADED")
 
 function rainRep:ADDON_LOADED(event, name)
-	if (name == self:GetName()) then
+	if (name == addon) then
 		-- set slash commands
 		SLASH_rainRep1 = "/rrep"
 		SLASH_rainRep2 = "/rainrep"
@@ -65,7 +62,7 @@ function rainRep:ADDON_LOADED(event, name)
 		-- events
 		self:RegisterEvent("PLAYER_ENTERING_WORLD")
 		self:RegisterEvent("UPDATE_FACTION")
-		self:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE") -- we need this as UPDATE_FACTION fires before the guild rep changes
+		self:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
 		-- does unregestering ADDON_LOADED get us something?
 	end
 end
@@ -85,7 +82,7 @@ function rainRep:PLAYER_ENTERING_WORLD()
 	
 	self:ReportInstanceGain(rainRepDB.prevName)
 	
-	-- TODO: playerWasDead doen not always get set to false
+	-- TODO: playerWasDead does not always get set to false
 	-- wipe instanceGainList in case the player did a spirit rezz after an instance and then entered a new one
 	if (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "world" and not rainRepDB.playerWasDead) then
 		self:Debug("instanceGainList wiped upon entering a dungeon.")
@@ -100,27 +97,15 @@ end
 
 -- NOTES: UPDATE_FACTION fires 3 times after login and twice after reloadui. Reps are available from the 2nd fire after login and the 1st after reloadui.
 function rainRep:UPDATE_FACTION()
-	if (updateCounter < 3) then
-		updateCounter = updateCounter + 1
-	end
-
-	if (updateCounter > 2) then
-		self:Report()
-	elseif (updateCounter == 2) then
+	if (updateCounter == 2) then
 		self:ScanFactions()
+		self:UnregisterEvent("UPDATE_FACTION")
 	end
+	
+	updateCounter = updateCounter + 1
 end
 
--- this is only needed for guild rep changes because UPDATE_FACTION fires before they occur
 function rainRep:CHAT_MSG_COMBAT_FACTION_CHANGE(message)
-	if (not guildChecked) then
-		guildName = GetGuildInfo("player") -- need to be here as it is not available at initial login
-		guildChecked = true
-		self:Debug("Guild checked.")
-	end
-
-	if (not guildName) then return end
-	if (not string.find(message, guildName)) then return end -- to avoid calling Report() for reps different than guild rep
 	self:Report()
 end
 
