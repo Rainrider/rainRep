@@ -1,8 +1,6 @@
 local addon, ns = ...	-- load the namespace
 local L = ns.L			-- load the localization table
 
-local debug = false
-
 local standingMaxID = 8
 local standingMinID = 1
 local updateCounter = 0
@@ -13,6 +11,18 @@ local abs = math.abs
 local ceil = math.ceil
 local GetFactionInfo = GetFactionInfo
 local GetNumFactions = GetNumFactions
+
+-- get the standing text table
+local standingText = {}
+for i = standingMinID, standingMaxID do
+	standingText[i] = _G["FACTION_STANDING_LABEL" .. i]
+end
+
+-- get the faction color table
+local standingColor = {}
+for i = standingMinID, standingMaxID do
+	standingColor[i] = FACTION_BAR_COLORS[i]
+end
 
 local redColor = "|cffff0000"
 local greenColor = "|cff00ff00"
@@ -27,6 +37,7 @@ local defaultDB = {
 	prevName = "",
 	currName = "",
 	playerWasDead = false,
+	debug = false,
 	instanceGainList = {},
 }
 local metaPrint = {
@@ -63,7 +74,8 @@ function rainRep:ADDON_LOADED(event, name)
 		self:RegisterEvent("PLAYER_ENTERING_WORLD")
 		self:RegisterEvent("UPDATE_FACTION")
 		self:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
-		-- does unregestering ADDON_LOADED get us something?
+
+		self:UnregisterEvent("ADDON_LOADED")
 	end
 end
 
@@ -95,22 +107,33 @@ function rainRep:PLAYER_ENTERING_WORLD()
 	end
 end
 
--- NOTES: UPDATE_FACTION fires 3 times after login and twice after reloadui. Reps are available from the 2nd fire after login and the 1st after reloadui.
-function rainRep:UPDATE_FACTION()
-	if (updateCounter == 2) then
-		self:ScanFactions()
+function rainRep:UPDATE_FACTION(event)
+	if (GetNumFactions() > 0) then
+		self:ScanFactions(event)
 		self:UnregisterEvent("UPDATE_FACTION")
+		-- when we have the factions info we still don't have the player's guild name (it just says "Guild" for both header and faction bar)
+		-- Guild name becomes available at PLAYER_GUILD_UPDATE (PGU)
+		-- so we have to rescan the factions to get the proper name at PGU _IF_ the player is in a guild
+		-- The guild rep bar is the second faction in the reputation ui if the player is in a guild
+		if (GetFactionInfo(2) == _G["GUILD"]) then
+			self:RegisterEvent("PLAYER_GUILD_UPDATE")
+		end
 	end
-	
-	updateCounter = updateCounter + 1
 end
 
-function rainRep:CHAT_MSG_COMBAT_FACTION_CHANGE(message)
+function rainRep:PLAYER_GUILD_UPDATE(event)
+	if (GetGuildInfo("player")) then
+		self:ScanFactions(event)
+		self:UnregisterEvent("PLAYER_GUILD_UPDATE")
+	end
+end
+
+function rainRep:CHAT_MSG_COMBAT_FACTION_CHANGE(event, message)
 	self:Report()
 end
 
 -- we need the headers too in order to catch new factions in Report()
-function rainRep:ScanFactions()
+function rainRep:ScanFactions(event)
 	for i = 1, GetNumFactions() do
 		local name, _, standingID, _, _, barValue = GetFactionInfo(i)
 
@@ -119,7 +142,8 @@ function rainRep:ScanFactions()
 		factionList[name].standing = standingID
 		factionList[name].value = barValue
 	end
-	self:Debug("Scanning factions done.")
+
+	self:Debug("Scanning factions done at " .. event)
 end
 
 function rainRep:Report()
@@ -135,8 +159,7 @@ function rainRep:Report()
 				end
 			
 				if (standingID ~= factionList[name].standing) then
-					local standingText = _G["FACTION_STANDING_LABEL" .. standingID]
-					local message = format(_G["FACTION_STANDING_CHANGED"], standingText, self:GetStandingColoredName(standingID, name))
+					local message = format(_G["FACTION_STANDING_CHANGED"], standingText[standingID], self:GetStandingColoredName(standingID, name))
 					self:Print(message)
 				end
 				
@@ -147,29 +170,25 @@ function rainRep:Report()
 					changeColor = greenColor
 					
 					if (standingID < standingMaxID) then
-						nextStanding = self:GetStandingColoredName(standingID + 1, _G["FACTION_STANDING_LABEL" .. standingID + 1])
+						nextStanding = self:GetStandingColoredName(standingID + 1, standingText[standingID + 1])
 					else
-						nextStanding = L["the end of"] .. " " .. self:GetStandingColoredName(standingMaxID, _G["FACTION_STANDING_LABEL" .. standingMaxID])
+						nextStanding = L["the end of"] .. " " .. self:GetStandingColoredName(standingMaxID, standingText[standingMaxID])
 					end
 				else -- reputaion loss
 					remaining = barValue - barMin
 					changeColor = redColor
 					
 					if (standingID > standingMinID) then
-						nextStanding = self:GetStandingColoredName(standingID - 1, _G["FACTION_STANDING_LABEL" .. standingID - 1])
+						nextStanding = self:GetStandingColoredName(standingID - 1, standingText[standingID - 1])
 					else
-						nextStanding = L["the beginning of"] .. " " .. self:GetStandingColoredName(standingMinID, _G["FACTION_STANDING_LABEL" .. standingMinID])
+						nextStanding = L["the beginning of"] .. " " .. self:GetStandingColoredName(standingMinID, standingText[standingMinID])
 					end
 				end
 				
 				-- calculate repetitions
-				local change = abs(diff)
-				local repetitions = ceil(remaining / change)
+				local repetitions = ceil(remaining / abs(diff))
 				
-				-- TODO: 	3 table look-ups for message (2 in L, 1 in _G)
-				--			2-3 table look-ups for nextStanding (1 in L, 2 in _G)
-				--			and 2 more if we get a new standing (both in _G)
-				--			best case: 5 look-ups, worst case: 8 per single rep change
+				-- TODO: message should go into L
 				-- +15 RepName. 150 more to nextstanding (10 repetitions)
 				local message = format("%s%+d|r %s. %s%d|r %s %s (%d %s)", changeColor, diff, self:GetStandingColoredName(standingID, name), changeColor, remaining, L["more to"], nextStanding, repetitions, L["repetitions"])
 				self:Print(message)
@@ -187,7 +206,7 @@ function rainRep:Report()
 end
 
 function rainRep:GetStandingColoredName(standingID, name)
-	local color = FACTION_BAR_COLORS[standingID]
+	local color = standingColor[standingID]
 	return format("|cff%02x%02x%02x%s|r", color.r * 255, color.g * 255, color.b * 255, name)
 end
 
@@ -210,7 +229,7 @@ end
 function rainRep:ReportInstanceGain(instanceName)
 	local playerDead = UnitIsDeadOrGhost("player")
 	
-	if (rainRepDB.currLoc == "world" and rainRepDB.prevLoc == "instance" and playerDead == 1) then
+	if (rainRepDB.currLoc == "world" and rainRepDB.prevLoc == "instance" and playerDead) then
 		self:Debug("Player is dead. No report, no table wipe")
 		rainRepDB.playerWasDead = true
 	elseif (rainRepDB.prevLoc == "instance" and not playerDead) then
@@ -232,20 +251,32 @@ function rainRep.Command(str, editbox)
 		rainRepDB.instanceGainList = setmetatable(rainRepDB.instanceGainList, metaPrint)
 		rainRep:Print(coloredAddonName .. L["Database reset."])
 	elseif (str == "debug") then
-		if (debug) then
-			debug = false
+		if (rainRepDB.debug) then
+			rainRepDB.debug = false
 			rainRep:Print(coloredAddonName .. L["Stopped debugging."])
 		else
-			debug = true
+			rainRepDB.debug = true
 			rainRep:Print(coloredAddonName .. L["Started debugging."])
 		end
+	elseif (str == "factions") then
+		print("Factions encountered:", numFactions)
+		local sortedFactions = {}
+		for name in pairs(factionList) do
+			table.insert(sortedFactions, name)
+		end
+		table.sort(sortedFactions)
+		for i, name in ipairs(sortedFactions) do
+			print(name)
+		end
+	elseif (str == "scan") then
+		rainRep:ScanFactions()
 	else
-		rainRep:Print(redColor .. L["Unknown command:"] .."|r " .. str)
+		rainRep:Print(coloredAddonName .. redColor .. L["Unknown command:"] .."|r " .. str)
 	end
 end
 
 function rainRep:Debug(...)
-	if (debug) then
+	if (rainRepDB.debug) then
 		print(coloredAddonName .. redColor .. "debug:|r ", ...)
 	end
 end
