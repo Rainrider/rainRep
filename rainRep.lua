@@ -251,11 +251,10 @@ function rainRep.Command(str, editbox)
 		rainRepDB.instanceGainList = setmetatable(rainRepDB.instanceGainList, metaPrint)
 		rainRep:Print(coloredAddonName .. L["Database reset."])
 	elseif (str == "debug") then
+		rainRepDB.debug = not rainRepDB.debug
 		if (rainRepDB.debug) then
-			rainRepDB.debug = false
 			rainRep:Print(coloredAddonName .. L["Stopped debugging."])
 		else
-			rainRepDB.debug = true
 			rainRep:Print(coloredAddonName .. L["Started debugging."])
 		end
 	elseif (str == "factions") then
