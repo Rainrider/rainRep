@@ -129,7 +129,7 @@ function rainRep:PLAYER_GUILD_UPDATE(event)
 end
 
 function rainRep:CHAT_MSG_COMBAT_FACTION_CHANGE(event, message)
-	self:Report()
+	self:Report(event)
 end
 
 -- we need the headers too in order to catch new factions in Report()
@@ -146,7 +146,7 @@ function rainRep:ScanFactions(event)
 	self:Debug("Scanning factions done at " .. event)
 end
 
-function rainRep:Report()
+function rainRep:Report(event)
 	for i = 1, GetNumFactions() do
 		local name, _, standingID, barMin, barMax, barValue, _, _, isHeader, _, hasRep = GetFactionInfo(i)
 		
@@ -201,7 +201,7 @@ function rainRep:Report()
 	
 	if (GetNumFactions() > numFactions) then
 		self:Debug("New faction encountered.")
-		self:ScanFactions()
+		self:ScanFactions(event)
 	end
 end
 
