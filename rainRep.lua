@@ -135,12 +135,17 @@ end
 -- we need the headers too in order to catch new factions in Report()
 function rainRep:ScanFactions(event)
 	for i = 1, GetNumFactions() do
-		local name, _, standingID, _, _, barValue = GetFactionInfo(i)
+		local name, _, standingID, _, _, barValue, _, _, _, _, _, _, _, id = GetFactionInfo(i)
+		local _, _, _, _, _, _, reaction = GetFriendshipReputation(id)
 
 		numFactions = numFactions + 1
 		factionList[name] = {}
-		factionList[name].standing = standingID
 		factionList[name].value = barValue
+		if (not reaction) then
+			factionList[name].standing = standingID
+		else
+			factionList[name].standing = reaction
+		end
 	end
 
 	self:Debug("Scanning factions done at " .. event)
@@ -148,9 +153,10 @@ end
 
 function rainRep:Report(event)
 	for i = 1, GetNumFactions() do
-		local name, _, standingID, barMin, barMax, barValue, _, _, isHeader, _, hasRep = GetFactionInfo(i)
+		local name, _, standingID, barMin, barMax, barValue, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
+		local _, _, _, _, _, _, reaction, threshold, nextThreshold = GetFriendshipReputation(id)
 		
-		if ((not isHeader or hasRep) and factionList[name]) then
+		if ((not isHeader or hasRep) and not reaction and factionList[name]) then
 			local diff = barValue - factionList[name].value
 			
 			if (diff ~= 0) then
@@ -195,6 +201,29 @@ function rainRep:Report(event)
 				
 				factionList[name].standing = standingID
 				factionList[name].value = barValue
+			end
+		end
+
+		if (reaction and factionList[name]) then
+			local diff = barValue - factionList[name].value
+
+			if (diff ~= 0) then
+				if (reaction ~= factionList[name].standing) then
+					self:Print(format(_G["FRIENDSHIP_STANDING_CHANGED"], name, reaction))
+				end
+
+				local remaining, changeColor
+
+				if (diff > 0) then
+					remaining = nextThreshold - barValue -- TODO: nextThreshold is nil when rep is maxed out (5 X 8400 = 42000 but max is 42999)
+					changeColor = greenColor
+				else
+					remaining = barValue - threshold
+					changeColor = redColor
+				end
+
+				local repetitions = ceil(remaining / abs(diff))
+				self:Print(format("%+d %s. %s%d|r (%d %s)", diff, name, changeColor, remaining, repetitions, L["repetitions"]))
 			end
 		end
 	end
