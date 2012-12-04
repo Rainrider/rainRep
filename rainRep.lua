@@ -49,7 +49,7 @@ local metaPrint = {
 		for k, v in pairs(tbl) do
 			str = str .. k .. ": " .. tostring(v) .. "\n"
 		end
-		
+
 		return str
 	end,
 }
@@ -64,12 +64,12 @@ function rainRep:ADDON_LOADED(event, name)
 		SLASH_rainRep1 = "/rrep"
 		SLASH_rainRep2 = "/rainrep"
 		SlashCmdList[name] = self.Command
-	
+
 		-- set saved variables
 		rainRepDB = rainRepDB or defaultDB
 		rainRepDB = setmetatable(rainRepDB, metaPrint)
 		rainRepDB.instanceGainList = setmetatable(rainRepDB.instanceGainList, metaPrint)
-		
+
 		-- events
 		self:RegisterEvent("PLAYER_ENTERING_WORLD")
 		self:RegisterEvent("UPDATE_FACTION")
@@ -81,19 +81,19 @@ end
 
 function rainRep:PLAYER_ENTERING_WORLD()
 	local name, locType = GetInstanceInfo()
-	
+
 	rainRepDB.prevLoc = rainRepDB.currLoc
 	rainRepDB.prevName = rainRepDB.currName
 	rainRepDB.currName = name
-	
+
 	if locType == "raid" or locType == "party" then
 		rainRepDB.currLoc = "instance"
 	else
 		rainRepDB.currLoc = "world"
 	end
-	
+
 	self:ReportInstanceGain(rainRepDB.prevName)
-	
+
 	-- TODO: playerWasDead does not always get set to false
 	-- wipe instanceGainList in case the player did a spirit rezz after an instance and then entered a new one
 	if (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "world" and not rainRepDB.playerWasDead) then
@@ -155,26 +155,26 @@ function rainRep:Report(event)
 	for i = 1, GetNumFactions() do
 		local name, _, standingID, barMin, barMax, barValue, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
 		local _, _, _, _, _, _, reaction, threshold, nextThreshold = GetFriendshipReputation(id)
-		
+
 		if ((not isHeader or hasRep) and not reaction and factionList[name]) then
 			local diff = barValue - factionList[name].value
-			
+
 			if (diff ~= 0) then
 				if (rainRepDB.currLoc == "instance") then
 					self:InstanceGain(name, diff)
 				end
-			
+
 				if (standingID ~= factionList[name].standing) then
 					local message = format(_G["FACTION_STANDING_CHANGED"], standingText[standingID], self:GetStandingColoredName(standingID, name))
 					self:Print(message)
 				end
-				
+
 				local nextStanding, remaining, changeColor
-				
+
 				if (diff > 0) then -- reputation gain
 					remaining = barMax - barValue
 					changeColor = greenColor
-					
+
 					if (standingID < standingMaxID) then
 						nextStanding = self:GetStandingColoredName(standingID + 1, standingText[standingID + 1])
 					else
@@ -183,22 +183,22 @@ function rainRep:Report(event)
 				else -- reputaion loss
 					remaining = barValue - barMin
 					changeColor = redColor
-					
+
 					if (standingID > standingMinID) then
 						nextStanding = self:GetStandingColoredName(standingID - 1, standingText[standingID - 1])
 					else
 						nextStanding = L["the beginning of"] .. " " .. self:GetStandingColoredName(standingMinID, standingText[standingMinID])
 					end
 				end
-				
+
 				-- calculate repetitions
 				local repetitions = ceil(remaining / abs(diff))
-				
+
 				-- TODO: message should go into L
 				-- +15 RepName. 150 more to nextstanding (10 repetitions)
 				local message = format("%s%+d|r %s. %s%d|r %s %s (%d %s)", changeColor, diff, self:GetStandingColoredName(standingID, name), changeColor, remaining, L["more to"], nextStanding, repetitions, L["repetitions"])
 				self:Print(message)
-				
+
 				factionList[name].standing = standingID
 				factionList[name].value = barValue
 			end
@@ -227,7 +227,7 @@ function rainRep:Report(event)
 			end
 		end
 	end
-	
+
 	if (GetNumFactions() > numFactions) then
 		self:Debug("New faction encountered.")
 		self:ScanFactions(event)
@@ -248,7 +248,7 @@ function rainRep:InstanceGain(repName, diff)
 			break -- exit the loop since we have a match
 		end
 	end
-	
+
 	if (not match) then
 		rainRepDB.instanceGainList[repName] = diff
 	end
@@ -257,7 +257,7 @@ end
 -- not UnitIsDeadOrGhost("player") to not wipe instanceGainList if we corpse run into an instance again
 function rainRep:ReportInstanceGain(instanceName)
 	local playerDead = UnitIsDeadOrGhost("player")
-	
+
 	if (rainRepDB.currLoc == "world" and rainRepDB.prevLoc == "instance" and playerDead) then
 		self:Debug("Player is dead. No report, no table wipe")
 		rainRepDB.playerWasDead = true
