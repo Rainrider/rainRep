@@ -3,14 +3,13 @@ local L = ns.L			-- load the localization table
 
 local standingMaxID = 8
 local standingMinID = 1
-local updateCounter = 0
-local numFactions = 0
 
 local format = string.format
 local abs = math.abs
 local ceil = math.ceil
 local GetFactionInfo = GetFactionInfo
 local GetNumFactions = GetNumFactions
+local GetFriendshipReputation = GetFriendshipReputation
 
 -- get the standing text table
 local standingText = {}
@@ -132,19 +131,21 @@ function rainRep:CHAT_MSG_COMBAT_FACTION_CHANGE(event, message)
 	self:Report(event)
 end
 
--- we need the headers too in order to catch new factions in Report()
 function rainRep:ScanFactions(event)
 	for i = 1, GetNumFactions() do
-		local name, _, standingID, _, _, barValue, _, _, _, _, _, _, _, id = GetFactionInfo(i)
+		local name, _, standingID, _, _, barValue, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
 		local _, _, _, _, _, _, reaction = GetFriendshipReputation(id)
 
-		numFactions = numFactions + 1
-		factionList[name] = {}
-		factionList[name].value = barValue
-		if (not reaction) then
-			factionList[name].standing = standingID
+		if (not isHeader or isHeader and hasRep) then
+			factionList[name] = {}
+			factionList[name].value = barValue
+			if (not reaction) then
+				factionList[name].standing = standingID
+			else
+				factionList[name].standing = reaction
+			end
 		else
-			factionList[name].standing = reaction
+			self:Debug("Skipped", name)
 		end
 	end
 
@@ -156,7 +157,7 @@ function rainRep:Report(event)
 		local name, _, standingID, barMin, barMax, barValue, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
 		local _, _, _, _, _, _, reaction, threshold, nextThreshold = GetFriendshipReputation(id)
 
-		if ((not isHeader or hasRep) and not reaction and factionList[name]) then
+		if (not reaction and factionList[name]) then
 			local diff = barValue - factionList[name].value
 
 			if (diff ~= 0) then
@@ -230,8 +231,8 @@ function rainRep:Report(event)
 		end
 	end
 
-	if (GetNumFactions() > numFactions) then
-		self:Debug("New faction encountered.")
+	if (not factionList[name] and (not isHeader or isHeader and hasRep)) then
+		self:Debug("New faction encountered:", name)
 		self:ScanFactions(event)
 	end
 end
@@ -284,12 +285,11 @@ function rainRep.Command(str, editbox)
 	elseif (str == "debug") then
 		rainRepDB.debug = not rainRepDB.debug
 		if (rainRepDB.debug) then
-			rainRep:Print(coloredAddonName .. L["Stopped debugging."])
-		else
 			rainRep:Print(coloredAddonName .. L["Started debugging."])
+		else
+			rainRep:Print(coloredAddonName .. L["Stopped debugging."])
 		end
 	elseif (str == "factions") then
-		print("Factions encountered:", numFactions)
 		local sortedFactions = {}
 		for name in pairs(factionList) do
 			table.insert(sortedFactions, name)
@@ -299,7 +299,7 @@ function rainRep.Command(str, editbox)
 			print(name)
 		end
 	elseif (str == "scan") then
-		rainRep:ScanFactions()
+		rainRep:ScanFactions("scan")
 	else
 		rainRep:Print(coloredAddonName .. redColor .. L["Unknown command:"] .."|r " .. str)
 	end
