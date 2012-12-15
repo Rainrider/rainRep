@@ -210,6 +210,7 @@ function rainRep:Report(event)
 			if (diff ~= 0) then
 				if (reaction ~= factionList[name].standing) then
 					self:Print(format(_G["FRIENDSHIP_STANDING_CHANGED"], name, reaction))
+					factionList[name].standing = reaction
 				end
 
 				local remaining, changeColor
@@ -224,6 +225,7 @@ function rainRep:Report(event)
 
 				local repetitions = ceil(remaining / abs(diff))
 				self:Print(format("%+d %s. %s%d|r (%d %s)", diff, name, changeColor, remaining, repetitions, L["repetitions"]))
+				factionList[name].value = barValue
 			end
 		end
 	end
