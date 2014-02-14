@@ -4,6 +4,8 @@
 ## Author: Rainrider
 ## Notes: Prints better reps
 
+## OptionalDeps: AdiDebug
+
 ## SavedVariablesPerCharacter: rainRepDB
 
 ## X-Credits: Nirek, Silverwind, dridzt

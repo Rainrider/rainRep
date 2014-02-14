@@ -53,6 +53,13 @@ local metaPrint = {
 	end,
 }
 
+local Debug
+if AdiDebug then
+	Debug = AdiDebug:GetSink("rainRep")
+else
+	Debug = function() end
+end
+
 local rainRep = CreateFrame("Frame", "rainRep", UIParent)
 rainRep:SetScript("OnEvent", function(self, event, ...) self[event](self, event, ...) end)
 rainRep:RegisterEvent("ADDON_LOADED")
@@ -96,12 +103,12 @@ function rainRep:PLAYER_ENTERING_WORLD()
 	-- TODO: playerWasDead does not always get set to false
 	-- wipe instanceGainList in case the player did a spirit rezz after an instance and then entered a new one
 	if (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "world" and not rainRepDB.playerWasDead) then
-		self:Debug("instanceGainList wiped upon entering a dungeon.")
+		Debug("instanceGainList wiped upon entering a dungeon.")
 		table.wipe(rainRepDB.instanceGainList)
 		rainRepDB.playerWasDead = false
 	-- wipe instanceGainList if we join a new dungeon from the current dungeon
 	elseif (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "instance" and prevName ~= currName) then
-		self:Debug("instanceGainList wiped upon entering a dungeon from a dungeon.")
+		Debug("instanceGainList wiped upon entering a dungeon from a dungeon.")
 		table.wipe(rainRepDB.instanceGainList)
 	end
 end
@@ -145,11 +152,11 @@ function rainRep:ScanFactions(event)
 				factionList[name].standing = reaction
 			end
 		else
-			self:Debug("Skipped", name)
+			Debug("Skipped", name)
 		end
 	end
 
-	self:Debug("Scanning factions done at " .. event)
+	Debug("Scanning factions done at " .. event)
 end
 
 function rainRep:Report(event)
@@ -234,7 +241,7 @@ function rainRep:Report(event)
 	end
 
 	if (not factionList[name] and (not isHeader or isHeader and hasRep)) then
-		self:Debug("New faction encountered:", name)
+		Debug("New faction encountered:", name)
 		self:ScanFactions(event)
 	end
 end
@@ -264,7 +271,7 @@ function rainRep:ReportInstanceGain(instanceName)
 	local playerDead = UnitIsDeadOrGhost("player")
 
 	if (rainRepDB.currLoc == "world" and rainRepDB.prevLoc == "instance" and playerDead) then
-		self:Debug("Player is dead. No report, no table wipe")
+		Debug("Player is dead. No report, no table wipe")
 		rainRepDB.playerWasDead = true
 	elseif (rainRepDB.prevLoc == "instance" and not playerDead) then
 		self:Print(coloredAddonName .. L["Reputation changes in"] .. " " .. instanceName .. ":")
@@ -284,13 +291,6 @@ function rainRep.Command(str, editbox)
 		rainRepDB = setmetatable(rainRepDB, metaPrint)
 		rainRepDB.instanceGainList = setmetatable(rainRepDB.instanceGainList, metaPrint)
 		rainRep:Print(coloredAddonName .. L["Database reset."])
-	elseif (str == "debug") then
-		rainRepDB.debug = not rainRepDB.debug
-		if (rainRepDB.debug) then
-			rainRep:Print(coloredAddonName .. L["Started debugging."])
-		else
-			rainRep:Print(coloredAddonName .. L["Stopped debugging."])
-		end
 	elseif (str == "factions") then
 		local sortedFactions = {}
 		for name in pairs(factionList) do
@@ -304,12 +304,6 @@ function rainRep.Command(str, editbox)
 		rainRep:ScanFactions("scan")
 	else
 		rainRep:Print(coloredAddonName .. redColor .. L["Unknown command:"] .."|r " .. str)
-	end
-end
-
-function rainRep:Debug(...)
-	if (rainRepDB.debug) then
-		print(coloredAddonName .. redColor .. "debug:|r ", ...)
 	end
 end
 
