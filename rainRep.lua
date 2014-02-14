@@ -154,7 +154,7 @@ function rainRep:ScanFactions(event)
 		end
 	end
 
-	Debug("Scanning factions done at " .. event)
+	Debug("Scanning factions done at", event)
 end
 
 function rainRep:Report(event)
@@ -269,10 +269,10 @@ function rainRep:ReportInstanceGain(instanceName)
 	local playerDead = UnitIsDeadOrGhost("player")
 
 	if (db.currLoc == "world" and db.prevLoc == "instance" and playerDead) then
-		Debug("Player is dead. No report, no table wipe")
+		Debug("Player is dead. No report, no table wipe.")
 		db.playerWasDead = true
 	elseif (db.prevLoc == "instance" and not playerDead) then
-		self:Print(coloredAddonName .. L["Reputation changes in"] .. " " .. instanceName .. ":")
+		self:Print(coloredAddonName, L["Reputation changes in"], instanceName .. ":")
 		self:Print(db.instanceGainList)
 		--wipe(db.instanceGainList)
 	end
@@ -288,7 +288,7 @@ function rainRep.Command(str, editbox)
 		rainRepDB = defaultDB
 		db = setmetatable(rainRepDB, metaPrint)
 		db.instanceGainList = setmetatable(db.instanceGainList, metaPrint)
-		rainRep:Print(coloredAddonName .. L["Database reset."])
+		rainRep:Print(coloredAddonName, L["Database reset."])
 	elseif (str == "factions") then
 		local sortedFactions = {}
 		for name in pairs(factionList) do
@@ -301,7 +301,7 @@ function rainRep.Command(str, editbox)
 	elseif (str == "scan") then
 		rainRep:ScanFactions("scan")
 	else
-		rainRep:Print(coloredAddonName .. redColor .. L["Unknown command:"] .."|r " .. str)
+		rainRep:Print(coloredAddonName, redColor .. L["Unknown command:"] .."|r", str)
 	end
 end
 
