@@ -217,7 +217,9 @@ function rainRep:Report(event)
 				local remaining, changeColor
 
 				if (diff > 0) then
-					remaining = nextThreshold - barValue -- TODO: nextThreshold is nil when rep is maxed out (5 X 8400 = 42000 but max is 42999)
+					-- nextThreshold is nil when friendship is maxed out (5 X 8400 = 42000 but max is 42999)
+					nextThreshold = nextThreshold or 42999
+					remaining = nextThreshold - barValue
 					changeColor = greenColor
 				else
 					remaining = barValue - threshold
