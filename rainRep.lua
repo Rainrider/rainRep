@@ -184,7 +184,7 @@ function rainRep:Report(event)
 					if (standingID < standingMaxID) then
 						nextStanding = self:GetStandingColoredName(standingID + 1, standingText[standingID + 1])
 					else
-						nextStanding = L["the end of"] .. " " .. self:GetStandingColoredName(standingMaxID, standingText[standingMaxID])
+						nextStanding = format("%s %s", L["the end of"], self:GetStandingColoredName(standingMaxID, standingText[standingMaxID]))
 					end
 				else -- reputaion loss
 					remaining = barValue - barMin
@@ -193,7 +193,7 @@ function rainRep:Report(event)
 					if (standingID > standingMinID) then
 						nextStanding = self:GetStandingColoredName(standingID - 1, standingText[standingID - 1])
 					else
-						nextStanding = L["the beginning of"] .. " " .. self:GetStandingColoredName(standingMinID, standingText[standingMinID])
+						nextStanding = format("%s %s", L["the beginning of"], self:GetStandingColoredName(standingMinID, standingText[standingMinID]))
 					end
 				end
 
