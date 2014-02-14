@@ -30,6 +30,7 @@ local yellowColor = "|cffffff00"
 local coloredAddonName = "|cff0099CCrainRep:|r "
 
 local factionList = {}
+local db
 local defaultDB = {
 	prevLoc = "world",
 	currLoc = "world",
@@ -73,8 +74,8 @@ function rainRep:ADDON_LOADED(event, name)
 
 		-- set saved variables
 		rainRepDB = rainRepDB or defaultDB
-		rainRepDB = setmetatable(rainRepDB, metaPrint)
-		rainRepDB.instanceGainList = setmetatable(rainRepDB.instanceGainList, metaPrint)
+		db = setmetatable(rainRepDB, metaPrint)
+		db.instanceGainList = setmetatable(db.instanceGainList, metaPrint)
 
 		-- events
 		self:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -88,28 +89,28 @@ end
 function rainRep:PLAYER_ENTERING_WORLD()
 	local name, locType = GetInstanceInfo()
 
-	rainRepDB.prevLoc = rainRepDB.currLoc
-	rainRepDB.prevName = rainRepDB.currName
-	rainRepDB.currName = name
+	db.prevLoc = db.currLoc
+	db.prevName = db.currName
+	db.currName = name
 
 	if locType == "raid" or locType == "party" then
-		rainRepDB.currLoc = "instance"
+		db.currLoc = "instance"
 	else
-		rainRepDB.currLoc = "world"
+		db.currLoc = "world"
 	end
 
-	self:ReportInstanceGain(rainRepDB.prevName)
+	self:ReportInstanceGain(db.prevName)
 
 	-- TODO: playerWasDead does not always get set to false
 	-- wipe instanceGainList in case the player did a spirit rezz after an instance and then entered a new one
-	if (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "world" and not rainRepDB.playerWasDead) then
+	if (db.currLoc == "instance" and db.prevLoc == "world" and not db.playerWasDead) then
 		Debug("instanceGainList wiped upon entering a dungeon.")
-		table.wipe(rainRepDB.instanceGainList)
-		rainRepDB.playerWasDead = false
+		table.wipe(db.instanceGainList)
+		db.playerWasDead = false
 	-- wipe instanceGainList if we join a new dungeon from the current dungeon
-	elseif (rainRepDB.currLoc == "instance" and rainRepDB.prevLoc == "instance" and prevName ~= currName) then
+	elseif (db.currLoc == "instance" and db.prevLoc == "instance" and prevName ~= currName) then
 		Debug("instanceGainList wiped upon entering a dungeon from a dungeon.")
-		table.wipe(rainRepDB.instanceGainList)
+		table.wipe(db.instanceGainList)
 	end
 end
 
@@ -253,16 +254,16 @@ end
 
 function rainRep:InstanceGain(repName, diff)
 	local match = false
-	for k, v in pairs(rainRepDB.instanceGainList) do
+	for k, v in pairs(db.instanceGainList) do
 		if (k == repName) then
-			rainRepDB.instanceGainList[k] = v + diff
+			db.instanceGainList[k] = v + diff
 			match = true
 			break -- exit the loop since we have a match
 		end
 	end
 
 	if (not match) then
-		rainRepDB.instanceGainList[repName] = diff
+		db.instanceGainList[repName] = diff
 	end
 end
 
@@ -270,26 +271,26 @@ end
 function rainRep:ReportInstanceGain(instanceName)
 	local playerDead = UnitIsDeadOrGhost("player")
 
-	if (rainRepDB.currLoc == "world" and rainRepDB.prevLoc == "instance" and playerDead) then
+	if (db.currLoc == "world" and db.prevLoc == "instance" and playerDead) then
 		Debug("Player is dead. No report, no table wipe")
-		rainRepDB.playerWasDead = true
-	elseif (rainRepDB.prevLoc == "instance" and not playerDead) then
+		db.playerWasDead = true
+	elseif (db.prevLoc == "instance" and not playerDead) then
 		self:Print(coloredAddonName .. L["Reputation changes in"] .. " " .. instanceName .. ":")
-		self:Print(rainRepDB.instanceGainList)
-		--wipe(rainRepDB.instanceGainList)
+		self:Print(db.instanceGainList)
+		--wipe(db.instanceGainList)
 	end
 end
 
 function rainRep.Command(str, editbox)
 	if (str == "report") then
-		rainRep:Print(rainRepDB.instanceGainList)
+		rainRep:Print(db.instanceGainList)
 	elseif (str == "db") then
-		rainRep:Print(rainRepDB)
+		rainRep:Print(db)
 	elseif (str == "reset") then
-		table.wipe(rainRepDB.instanceGainList)
+		table.wipe(db.instanceGainList)
 		rainRepDB = defaultDB
-		rainRepDB = setmetatable(rainRepDB, metaPrint)
-		rainRepDB.instanceGainList = setmetatable(rainRepDB.instanceGainList, metaPrint)
+		db = setmetatable(rainRepDB, metaPrint)
+		db.instanceGainList = setmetatable(db.instanceGainList, metaPrint)
 		rainRep:Print(coloredAddonName .. L["Database reset."])
 	elseif (str == "factions") then
 		local sortedFactions = {}
