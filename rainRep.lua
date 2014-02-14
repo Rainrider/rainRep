@@ -54,16 +54,16 @@ local metaPrint = {
 	end,
 }
 
-local Debug
-if AdiDebug then
-	Debug = AdiDebug:GetSink("rainRep")
-else
-	Debug = function() end
-end
-
 local rainRep = CreateFrame("Frame", "rainRep", UIParent)
 rainRep:SetScript("OnEvent", function(self, event, ...) self[event](self, event, ...) end)
 rainRep:RegisterEvent("ADDON_LOADED")
+
+local Debug
+if AdiDebug then
+	Debug = AdiDebug:Embed(rainRep, "rainRep")
+else
+	Debug = function() end
+end
 
 function rainRep:ADDON_LOADED(event, name)
 	if (name == addon) then
@@ -147,13 +147,10 @@ function rainRep:ScanFactions(event)
 		if (not isHeader or isHeader and hasRep) then
 			factionList[name] = {}
 			factionList[name].value = barValue
-			if (not reaction) then
-				factionList[name].standing = standingID
-			else
-				factionList[name].standing = reaction
-			end
+			factionList[name].standing = reaction or standingID
+			Debug("|cff00ff00Added|r", name, barValue, reaction, standingID)
 		else
-			Debug("Skipped", name)
+			Debug("|cffff0000Skipped|r", name)
 		end
 	end
 
