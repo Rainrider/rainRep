@@ -289,15 +289,6 @@ function rainRep.Command(str, editbox)
 		db = setmetatable(rainRepDB, metaPrint)
 		db.instanceGainList = setmetatable(db.instanceGainList, metaPrint)
 		rainRep:Print(coloredAddonName, L["Database reset."])
-	elseif (str == "factions") then
-		local sortedFactions = {}
-		for name in pairs(factionList) do
-			table.insert(sortedFactions, name)
-		end
-		table.sort(sortedFactions)
-		for i, name in ipairs(sortedFactions) do
-			print(name)
-		end
 	elseif (str == "scan") then
 		rainRep:ScanFactions("scan")
 	else
