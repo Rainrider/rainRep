@@ -43,13 +43,15 @@ local defaultDB = {
 local metaPrint = {
 	__tostring = function(tbl)
 		local str = ""
-		if (not next(tbl)) then -- "if (not next(tbl))" should tell whether the table is empty
+		if (not next(tbl)) then -- the passed table is empty
 			return L["No reputation changes."]
 		end
 		for k, v in pairs(tbl) do
-			str = str .. k .. ": " .. tostring(v) .. "\n"
+			if type(v) == "table" then
+				v = setmetatable(v, metaPrint)
+			end
+			str = str .. format("%s: %s\n", k, v)
 		end
-
 		return str
 	end,
 }
@@ -88,6 +90,7 @@ end
 
 function rainRep:PLAYER_ENTERING_WORLD()
 	local name, locType = GetInstanceInfo()
+	Debug("Entering instance:", name, locType)
 
 	db.prevLoc = db.currLoc
 	db.prevName = db.currName
@@ -297,6 +300,5 @@ function rainRep.Command(str, editbox)
 end
 
 function rainRep:Print(...)
-	local str = tostring(...)
-	DEFAULT_CHAT_FRAME:AddMessage(str)
+	DEFAULT_CHAT_FRAME:AddMessage(tostringall(...))
 end
