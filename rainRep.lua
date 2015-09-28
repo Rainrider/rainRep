@@ -14,7 +14,7 @@ local GetFriendshipReputation = GetFriendshipReputation
 -- get the standing text table
 local standingText = {}
 for i = standingMinID, standingMaxID do
-	standingText[i] = _G["FACTION_STANDING_LABEL" .. i]
+	standingText[i] = GetText("FACTION_STANDING_LABEL" .. i, UnitSex("player"))
 end
 
 -- get the faction color table
