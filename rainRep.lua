@@ -118,14 +118,12 @@ function rainRep:PLAYER_ENTERING_WORLD()
 end
 
 function rainRep:UPDATE_FACTION(event)
-	if (GetNumFactions() > 0) then
+	if (GetNumFactions() > 2) then
 		self:ScanFactions(event)
 		self:UnregisterEvent("UPDATE_FACTION")
-		-- when we have the factions info we still don't have the player's guild name (it just says "Guild" for both header and faction bar)
-		-- Guild name becomes available at PLAYER_GUILD_UPDATE (PGU)
-		-- so we have to rescan the factions to get the proper name at PGU _IF_ the player is in a guild
+		-- The real guild name becomes available at PLAYER_GUILD_UPDATE
 		-- The guild rep bar is the second faction in the reputation ui if the player is in a guild
-		if (GetFactionInfo(2) == _G["GUILD"]) then
+		if (GetFactionInfo(2) == _G.GUILD) then
 			self:RegisterEvent("PLAYER_GUILD_UPDATE")
 		end
 	end
@@ -133,7 +131,9 @@ end
 
 function rainRep:PLAYER_GUILD_UPDATE(event)
 	if (GetGuildInfo("player")) then
-		self:ScanFactions(event)
+		local name, _, standingID, _, _, value = GetFactionInfo(2)
+		factionList[_G.GUILD] = nil
+		self:AddFaction(name, value, standingID)
 		self:UnregisterEvent("PLAYER_GUILD_UPDATE")
 	end
 end
@@ -142,16 +142,22 @@ function rainRep:CHAT_MSG_COMBAT_FACTION_CHANGE(event, message)
 	self:Report(event)
 end
 
+function rainRep:AddFaction(name, value, standing)
+	if (not factionList[name]) then
+		factionList[name] = {}
+		factionList[name].value = value
+		factionList[name].standing = standing
+		Debug("|cff00ff00Added|r", name, value, standing)
+	end
+end
+
 function rainRep:ScanFactions(event)
 	for i = 1, GetNumFactions() do
 		local name, _, standingID, _, _, barValue, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
 		local _, _, _, _, _, _, reaction = GetFriendshipReputation(id)
 
 		if (not isHeader or isHeader and hasRep) then
-			factionList[name] = {}
-			factionList[name].value = barValue
-			factionList[name].standing = reaction or standingID
-			Debug("|cff00ff00Added|r", name, barValue, reaction, standingID)
+			self:AddFaction(name, barValue, reaction or standingID)
 		else
 			Debug("|cffff0000Skipped|r", name)
 		end
@@ -211,9 +217,7 @@ function rainRep:Report(event)
 				factionList[name].standing = standingID
 				factionList[name].value = barValue
 			end
-		end
-
-		if (reaction and factionList[name]) then
+		elseif (reaction and factionList[name]) then
 			local diff = barValue - factionList[name].value
 
 			if (diff ~= 0) then
@@ -238,11 +242,8 @@ function rainRep:Report(event)
 				self:Print(format("%+d %s. %s%d|r (%d %s)", diff, name, changeColor, remaining, repetitions, L["repetitions"]))
 				factionList[name].value = barValue
 			end
-		end
-
-		if (not factionList[name] and (not isHeader or isHeader and hasRep)) then
-			Debug("New faction encountered:", name)
-			self:ScanFactions(event)
+		elseif (not isHeader or isHeader and hasRep) then
+			self:AddFaction(name, barValue, reaction or standingID)
 		end
 	end
 end
