@@ -239,11 +239,11 @@ function rainRep:Report(event)
 				factionList[name].value = barValue
 			end
 		end
-	end
 
-	if (not factionList[name] and (not isHeader or isHeader and hasRep)) then
-		Debug("New faction encountered:", name)
-		self:ScanFactions(event)
+		if (not factionList[name] and (not isHeader or isHeader and hasRep)) then
+			Debug("New faction encountered:", name)
+			self:ScanFactions(event)
+		end
 	end
 end
 
