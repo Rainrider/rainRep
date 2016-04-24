@@ -1,148 +1,153 @@
 local addon, ns = ...	-- load the namespace
 local L = ns.L			-- load the localization table
+local locale = _G.GetLocale()
 
 local standingMaxID = 8
 local standingMinID = 1
 
-local format = string.format
+local _G = _G
 local abs = math.abs
 local ceil = math.ceil
-local GetFactionInfo = GetFactionInfo
-local GetNumFactions = GetNumFactions
-local GetFriendshipReputation = GetFriendshipReputation
+local format = string.format
+local match = string.match
+local gsub = string.gsub
+local strlower = _G.strlower
+local sort = table.sort
+local wipe = table.wipe
+local GetFactionInfo = _G.GetFactionInfo
+local GetNumFactions = _G.GetNumFactions
+local GetFriendshipReputation = _G.GetFriendshipReputation
+
+local matchData = {
+	-- global string // match order
+	[_G.FACTION_STANDING_CHANGED] = {
+		enUS = {standing = 1, name = 2}, -- "You are now %s with %s."
+		deDE = {standing = 2, name = 1},
+		ruRU = {standing = 2, name = 1},
+		zhCH = {standing = 2, name = 1},
+		koKR = {standing = 2, name = 1},
+	},
+	[_G.FACTION_STANDING_CHANGED_GUILD] = {
+		enUS = {standing = 1}, -- "You are now %s with your guild."
+	},
+	[_G.FACTION_STANDING_CHANGED_GUILDNAME] = {
+		enUS = {standing = 1, name = 2}, -- "You are now %s with %s."
+		deDE = {standing = 2, name = 1},
+		ruRU = {standing = 2, name = 1},
+		zhCH = {standing = 2, name = 1},
+		koKR = {standing = 2, name = 1},
+	},
+	[_G.FACTION_STANDING_INCREASED_DOUBLE_BONUS] = {
+		enUS = {name = 1, value = 2, mult = 1}, -- "Reputation with %s increased by %d. (+%.1f Refer-A-Friend bonus) (+%.1f bonus)"
+	},
+	[_G.FACTION_STANDING_INCREASED_BONUS] = {
+		enUS = {name = 1, value = 2, mult = 1}, -- "Reputation with %s increased by %d. (+%.1f Refer-A-Friend bonus)"
+	},
+	[_G.FACTION_STANDING_INCREASED_ACH_BONUS] = {
+		enUS = {name = 1, value = 2, mult = 1}, -- "Reputation with %s increased by %d. (+%.1f bonus)"
+	},
+	[_G.FACTION_STANDING_INCREASED] = {
+		enUS = {name = 1, value = 2, mult = 1}, -- "Reputation with %s increased by %d."
+	},
+	[_G.FACTION_STANDING_INCREASED_GENERIC] = {
+		enUS = {name = 1, mult = 1}, -- "Reputation with %s increased."
+	},
+	[_G.FACTION_STANDING_DECREASED] = {
+		enUS = {name = 1, value = 2, mult = -1}, -- "Reputation with %s decreased by %d."
+	},
+	[_G.FACTION_STANDING_DECREASED_GENERIC] = {
+		enUS = {name = 1, mult = -1}, -- "Reputation with %s decreased."
+	},
+}
+
+local function ConvertToPattern(pattern)
+	-- substitute all format specifier with \1
+	pattern = gsub(pattern, "(%%%d?$?%d*%.?%d?[dsf])", "\1") -- %s : %d : %2$s : %1$03d : +%.1f : %2$10.4f
+	-- escape the magic characters ( ) . % + - * ? [ ] by prepending %
+	pattern = gsub(pattern, "[%(%)%.%%%+%-%*%?%[%]]", "%%%1")
+	-- substitute \1 with the matcher
+	pattern = gsub(pattern, "\1", "(.-)")
+	return pattern
+end
+
+do
+	local patternData = {}
+
+	for gs, data in pairs(matchData) do
+		local pattern = ConvertToPattern(gs)
+		patternData[pattern] = data[locale or "enUS"]
+	end
+
+	matchData = patternData
+end
 
 -- get the standing text table
-local standingText = {}
+local standingTexts = {}
 for i = standingMinID, standingMaxID do
-	standingText[i] = GetText("FACTION_STANDING_LABEL" .. i, UnitSex("player"))
+	standingTexts[i] = _G.GetText("FACTION_STANDING_LABEL" .. i, _G.UnitSex("player"))
 end
 
 -- get the faction color table
-local standingColor = {}
+local standingColors = {}
 for i = standingMinID, standingMaxID do
-	standingColor[i] = FACTION_BAR_COLORS[i]
+	standingColors[i] = _G.FACTION_BAR_COLORS[i]
 end
 
 local redColor = "|cffff0000"
 local greenColor = "|cff00ff00"
 local yellowColor = "|cffffff00"
 
-local coloredAddonName = "|cff0099CCrainRep:|r "
+local coloredAddonName = "|cff0099CCrainRep|r"
 
-local factionList = {}
 local db
 local defaultDB = {
-	prevLoc = "world",
-	currLoc = "world",
-	prevName = "",
-	currName = "",
-	playerWasDead = false,
-	debug = false,
 	instanceGainList = {},
 }
-local metaPrint = {
-	__tostring = function(tbl)
-		local str = ""
-		if (not next(tbl)) then -- the passed table is empty
-			return L["No reputation changes."]
-		end
-		for k, v in pairs(tbl) do
-			if type(v) == "table" then
-				v = setmetatable(v, metaPrint)
-			end
-			str = str .. format("%s: %s\n", k, v)
-		end
-		return str
-	end,
-}
 
-local rainRep = CreateFrame("Frame", "rainRep", UIParent)
-rainRep:SetScript("OnEvent", function(self, event, ...) self[event](self, event, ...) end)
-rainRep:RegisterEvent("ADDON_LOADED")
-
-local Debug
-if AdiDebug then
-	Debug = AdiDebug:Embed(rainRep, "rainRep")
-else
-	Debug = function() end
+local factionList = {}
+local isInInstance = false
+local currentInstanceName = _G.WORLD
+-----------------------
+-- Utility Functions --
+-----------------------
+local Debug = function() end
+if _G.AdiDebug then
+	Debug = _G.AdiDebug:Embed({}, addon)
 end
 
-function rainRep:ADDON_LOADED(event, name)
-	if (name == addon) then
-		-- set slash commands
-		SLASH_rainRep1 = "/rrep"
-		SLASH_rainRep2 = "/rainrep"
-		SlashCmdList[name] = self.Command
+local function GetStandingColoredName(standingID, name)
+	local color = standingColors[standingID]
+	return format("|cff%02x%02x%02x%s|r", color.r * 255, color.g * 255, color.b * 255, name)
+end
 
-		-- set saved variables
-		rainRepDB = rainRepDB or defaultDB
-		db = setmetatable(rainRepDB, metaPrint)
-		db.instanceGainList = setmetatable(db.instanceGainList, metaPrint)
+local function SortKeys(tbl)
+	local sortedKeys = {}
+	for k in pairs(tbl) do
+		sortedKeys[#sortedKeys + 1] = k;
+	end
+	sort(sortedKeys)
+	return sortedKeys
+end
 
-		-- events
-		self:RegisterEvent("PLAYER_ENTERING_WORLD")
-		self:RegisterEvent("UPDATE_FACTION")
-		self:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
-
-		self:UnregisterEvent("ADDON_LOADED")
+local function PrintSortedFactions(tbl)
+	local sortedKeys = SortKeys(tbl)
+	for i = 1, #sortedKeys do
+		local key = sortedKeys[i]
+		print(format("%s: %s", GetStandingColoredName(factionList[key].standing, key), tbl[key]))
 	end
 end
 
-function rainRep:PLAYER_ENTERING_WORLD()
-	local name, locType = GetInstanceInfo()
-	Debug("Entering instance:", name, locType)
-
-	db.prevLoc = db.currLoc
-	db.prevName = db.currName
-	db.currName = name
-
-	if locType == "raid" or locType == "party" then
-		db.currLoc = "instance"
-	else
-		db.currLoc = "world"
-	end
-
-	self:ReportInstanceGain(db.prevName)
-
-	-- TODO: playerWasDead does not always get set to false
-	-- wipe instanceGainList in case the player did a spirit rezz after an instance and then entered a new one
-	if (db.currLoc == "instance" and db.prevLoc == "world" and not db.playerWasDead) then
-		Debug("instanceGainList wiped upon entering a dungeon.")
-		table.wipe(db.instanceGainList)
-		db.playerWasDead = false
-	-- wipe instanceGainList if we join a new dungeon from the current dungeon
-	elseif (db.currLoc == "instance" and db.prevLoc == "instance" and prevName ~= currName) then
-		Debug("instanceGainList wiped upon entering a dungeon from a dungeon.")
-		table.wipe(db.instanceGainList)
-	end
-end
-
-function rainRep:UPDATE_FACTION(event)
-	if (GetNumFactions() > 2) then
-		self:ScanFactions(event)
-		self:UnregisterEvent("UPDATE_FACTION")
-		-- The real guild name becomes available at PLAYER_GUILD_UPDATE
-		-- The guild rep bar is the second faction in the reputation ui if the player is in a guild
-		if (GetFactionInfo(2) == _G.GUILD) then
-			self:RegisterEvent("PLAYER_GUILD_UPDATE")
+local function PrintTable(tbl)
+	for k, v in pairs(tbl) do
+		if type(v) == "table" then
+			PrintTable(v)
+		else
+			print(format("%s: %s", k, tostring(v)))
 		end
 	end
 end
 
-function rainRep:PLAYER_GUILD_UPDATE(event)
-	if (GetGuildInfo("player")) then
-		local name, _, standingID, _, _, value = GetFactionInfo(2)
-		factionList[_G.GUILD] = nil
-		self:AddFaction(name, value, standingID)
-		self:UnregisterEvent("PLAYER_GUILD_UPDATE")
-	end
-end
-
-function rainRep:CHAT_MSG_COMBAT_FACTION_CHANGE(event, message)
-	self:Report(event)
-end
-
-function rainRep:AddFaction(name, value, standing)
+local function AddFaction(name, value, standing)
 	if (not factionList[name]) then
 		factionList[name] = {}
 		factionList[name].value = value
@@ -151,13 +156,13 @@ function rainRep:AddFaction(name, value, standing)
 	end
 end
 
-function rainRep:ScanFactions(event)
+local function ScanFactions(event)
 	for i = 1, GetNumFactions() do
 		local name, _, standingID, _, _, barValue, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
 		local _, _, _, _, _, _, reaction = GetFriendshipReputation(id)
 
 		if (not isHeader or isHeader and hasRep) then
-			self:AddFaction(name, barValue, reaction or standingID)
+			AddFaction(name, barValue, reaction or standingID)
 		else
 			Debug("|cffff0000Skipped|r", name)
 		end
@@ -166,7 +171,28 @@ function rainRep:ScanFactions(event)
 	Debug("Scanning factions done at", event)
 end
 
-function rainRep:Report(event)
+local function UpdateInstanceGain(faction, value)
+	local name = currentInstanceName
+	db.instanceGainList[name] = db.instanceGainList[name] or {}
+	db.instanceGainList[name][faction] = (db.instanceGainList[name][faction] or 0) + value
+end
+
+local function ReportInstanceGain()
+	local list = db.instanceGainList
+	if not next(list) then
+		return print(format("%s: %s", coloredAddonName, L["No reputation changes."]))
+	end
+
+	local sortedInstances = SortKeys(list)
+	for i = 1, #sortedInstances do
+		local name = sortedInstances[i]
+		print(format("%s%s|r", yellowColor, name))
+		local instance = list[name]
+		PrintSortedFactions(instance)
+	end
+end
+
+local function Report()
 	for i = 1, GetNumFactions() do
 		local name, _, standingID, barMin, barMax, barValue, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
 		local _, _, _, _, _, _, reaction, threshold, nextThreshold = GetFriendshipReputation(id)
@@ -175,13 +201,13 @@ function rainRep:Report(event)
 			local diff = barValue - factionList[name].value
 
 			if (diff ~= 0) then
-				if (rainRepDB.currLoc == "instance") then
-					self:InstanceGain(name, diff)
-				end
+				--if (isInInstance) then
+					UpdateInstanceGain(name, diff)
+				--end
 
 				if (standingID ~= factionList[name].standing) then
-					local message = format(_G["FACTION_STANDING_CHANGED"], standingText[standingID], self:GetStandingColoredName(standingID, name))
-					self:Print(message)
+					local message = format(_G["FACTION_STANDING_CHANGED"], standingTexts[standingID], GetStandingColoredName(standingID, name))
+					print(message)
 				end
 
 				local nextStanding, remaining, changeColor
@@ -191,18 +217,18 @@ function rainRep:Report(event)
 					changeColor = greenColor
 
 					if (standingID < standingMaxID) then
-						nextStanding = self:GetStandingColoredName(standingID + 1, standingText[standingID + 1])
+						nextStanding = GetStandingColoredName(standingID + 1, standingTexts[standingID + 1])
 					else
-						nextStanding = format("%s %s", L["the end of"], self:GetStandingColoredName(standingMaxID, standingText[standingMaxID]))
+						nextStanding = format("%s %s", L["the end of"], GetStandingColoredName(standingMaxID, standingTexts[standingMaxID]))
 					end
 				else -- reputaion loss
 					remaining = barValue - barMin
 					changeColor = redColor
 
 					if (standingID > standingMinID) then
-						nextStanding = self:GetStandingColoredName(standingID - 1, standingText[standingID - 1])
+						nextStanding = GetStandingColoredName(standingID - 1, standingTexts[standingID - 1])
 					else
-						nextStanding = format("%s %s", L["the beginning of"], self:GetStandingColoredName(standingMinID, standingText[standingMinID]))
+						nextStanding = format("%s %s", L["the beginning of"], GetStandingColoredName(standingMinID, standingTexts[standingMinID]))
 					end
 				end
 
@@ -211,8 +237,8 @@ function rainRep:Report(event)
 
 				-- TODO: message should go into L
 				-- +15 RepName. 150 more to nextstanding (10 repetitions)
-				local message = format("%s%+d|r %s. %s%d|r %s %s (%d %s)", changeColor, diff, self:GetStandingColoredName(standingID, name), changeColor, remaining, L["more to"], nextStanding, repetitions, L["repetitions"])
-				self:Print(message)
+				local message = format("%s%+d|r %s. %s%d|r %s %s (%d %s)", changeColor, diff, GetStandingColoredName(standingID, name), changeColor, remaining, L["more to"], nextStanding, repetitions, L["repetitions"])
+				print(message)
 
 				factionList[name].standing = standingID
 				factionList[name].value = barValue
@@ -222,7 +248,7 @@ function rainRep:Report(event)
 
 			if (diff ~= 0) then
 				if (reaction ~= factionList[name].standing) then
-					self:Print(format(_G["FRIENDSHIP_STANDING_CHANGED"], name, reaction))
+					print(format(_G["FRIENDSHIP_STANDING_CHANGED"], name, reaction))
 					factionList[name].standing = reaction
 				end
 
@@ -239,67 +265,92 @@ function rainRep:Report(event)
 				end
 
 				local repetitions = ceil(remaining / abs(diff))
-				self:Print(format("%+d %s. %s%d|r (%d %s)", diff, name, changeColor, remaining, repetitions, L["repetitions"]))
+				print(format("%+d %s. %s%d|r (%d %s)", diff, name, changeColor, remaining, repetitions, L["repetitions"]))
 				factionList[name].value = barValue
 			end
 		elseif (not isHeader or isHeader and hasRep) then
-			self:AddFaction(name, barValue, reaction or standingID)
+			AddFaction(name, barValue, reaction or standingID)
 		end
 	end
 end
 
-function rainRep:GetStandingColoredName(standingID, name)
-	local color = standingColor[standingID]
-	return format("|cff%02x%02x%02x%s|r", color.r * 255, color.g * 255, color.b * 255, name)
-end
-
-function rainRep:InstanceGain(repName, diff)
-	local match = false
-	for k, v in pairs(db.instanceGainList) do
-		if (k == repName) then
-			db.instanceGainList[k] = v + diff
-			match = true
-			break -- exit the loop since we have a match
-		end
-	end
-
-	if (not match) then
-		db.instanceGainList[repName] = diff
-	end
-end
-
--- not UnitIsDeadOrGhost("player") to not wipe instanceGainList if we corpse run into an instance again
-function rainRep:ReportInstanceGain(instanceName)
-	local playerDead = UnitIsDeadOrGhost("player")
-
-	if (db.currLoc == "world" and db.prevLoc == "instance" and playerDead) then
-		Debug("Player is dead. No report, no table wipe.")
-		db.playerWasDead = true
-	elseif (db.prevLoc == "instance" and not playerDead) then
-		self:Print(coloredAddonName, L["Reputation changes in"], instanceName .. ":")
-		self:Print(db.instanceGainList)
-		--wipe(db.instanceGainList)
-	end
-end
-
-function rainRep.Command(str, editbox)
-	if (str == "report") then
-		rainRep:Print(db.instanceGainList)
-	elseif (str == "db") then
-		rainRep:Print(db)
-	elseif (str == "reset") then
-		table.wipe(db.instanceGainList)
-		rainRepDB = defaultDB
-		db = setmetatable(rainRepDB, metaPrint)
-		db.instanceGainList = setmetatable(db.instanceGainList, metaPrint)
-		rainRep:Print(coloredAddonName, L["Database reset."])
-	elseif (str == "scan") then
-		rainRep:ScanFactions("scan")
+local function Command(msg)
+	msg = strlower(msg)
+	if (msg == "report") then
+		ReportInstanceGain()
+	elseif (msg == "reset") then
+		wipe(db.instanceGainList)
+	elseif (msg == "db") then
+		PrintTable(db)
+	elseif (msg == "scan") then
+		ScanFactions("scan")
 	else
-		rainRep:Print(coloredAddonName, redColor .. L["Unknown command:"] .."|r", str)
+		print(format("%s: %s%s|r %s", coloredAddonName, redColor, L["Unknown command:"], msg))
 	end
 end
 
-function rainRep:Print(...)
-	DEFAULT_CHAT_FRAME:AddMessage(tostringall(...))
+local rainRep = _G.CreateFrame("Frame", "rainRep")
+rainRep:SetScript("OnEvent", function(self, event, ...) self[event](self, event, ...) end)
+rainRep:RegisterEvent("ADDON_LOADED")
+
+function rainRep:ADDON_LOADED(_, name)
+	if (name == addon) then
+		-- set slash commands
+		_G.SLASH_rainRep1 = "/rrep"
+		_G.SLASH_rainRep2 = "/rainrep"
+		_G.SlashCmdList[name] = Command
+
+		-- set saved variables
+		_G.rainRepDB = _G.rainRepDB or {}
+		db = setmetatable(_G.rainRepDB, { __index = defaultDB })
+
+		-- events
+		self:RegisterEvent("PLAYER_ENTERING_WORLD")
+		self:RegisterEvent("UPDATE_FACTION")
+		self:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
+
+		self:UnregisterEvent("ADDON_LOADED")
+	end
+end
+
+function rainRep:PLAYER_ENTERING_WORLD()
+	isInInstance = _G.IsInInstance()
+	currentInstanceName = isInInstance and _G.GetInstanceInfo() or _G.WORLD
+end
+
+function rainRep:UPDATE_FACTION(event)
+	if (GetNumFactions() > 2) then
+		ScanFactions(event)
+		self:UnregisterEvent("UPDATE_FACTION")
+		-- The real guild name becomes available at PLAYER_GUILD_UPDATE
+		-- The guild rep bar is the second faction in the reputation ui if the player is in a guild
+		if (GetFactionInfo(2) == _G.GUILD) then
+			self:RegisterEvent("PLAYER_GUILD_UPDATE")
+		end
+	end
+end
+
+function rainRep:PLAYER_GUILD_UPDATE()
+	if (_G.GetGuildInfo("player")) then
+		local name, _, standingID, _, _, value = GetFactionInfo(2)
+		factionList[_G.GUILD] = nil
+		AddFaction(name, value, standingID)
+		self:UnregisterEvent("PLAYER_GUILD_UPDATE")
+	end
+end
+
+function rainRep:CHAT_MSG_COMBAT_FACTION_CHANGE(_, msg) -- args: event, message
+	local matches
+	for pattern, data in pairs(matchData) do
+		matches = {match(msg, pattern)}
+		if #matches > 0 then
+			local faction = matches[data.name]
+			local value = matches[data.value]
+			if value then
+				value = value * (data.mult or 1)
+			end
+			print(format("%s: %s%d|r", faction, value >= 0 and greenColor or redColor, value))
+		end
+	end
+	--Report()
 end
