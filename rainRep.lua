@@ -280,7 +280,10 @@ function rainRep:CHAT_MSG_COMBAT_FACTION_CHANGE(_, msg) -- args: event, message
 		if #matches > 0 then
 			local faction = matches[data.name]
 			local value = matches[data.value]
-			if value then
+			local standing = matches[data.standing]
+			if standing then
+				print(format("%s - %s"), faction, standing) -- TODO: coloring
+			elseif value then
 				value = value * (data.mult or 1)
 				ReportFaction(faction, value)
 			end
