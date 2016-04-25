@@ -15,6 +15,7 @@ local strlower = _G.strlower
 local sort = table.sort
 local wipe = table.wipe
 local GetFactionInfo = _G.GetFactionInfo
+local GetFactionInfoByID = _G.GetFactionInfoByID
 local GetNumFactions = _G.GetNumFactions
 local GetFriendshipReputation = _G.GetFriendshipReputation
 
@@ -108,7 +109,7 @@ local defaultDB = {
 	instanceGainList = {},
 }
 
-local factionsCache = {}
+local factionIDs = {}
 local isInInstance = false
 local currentInstanceName = _G.WORLD
 -----------------------
@@ -136,8 +137,10 @@ end
 local function PrintSortedFactions(tbl)
 	local sortedKeys = SortKeys(tbl)
 	for i = 1, #sortedKeys do
-		local key = sortedKeys[i]
-		print(format("%s: %s", GetStandingColoredName(factionsCache[key].standing, key), tbl[key]))
+		local name = sortedKeys[i]
+		local id = factionIDs[name]
+		local _, _, standing = GetFactionInfoByID(id)
+		print(format("%s: %s", GetStandingColoredName(standing, name), tbl[name]))
 	end
 end
 
@@ -151,29 +154,15 @@ local function PrintTable(tbl)
 	end
 end
 
-local function AddFaction(name, low, high, value, standing, id)
-	if (not factionsCache[name]) then
-		Debug("|cff00ff00Adding|r", name, low, high, value, standing, id)
-		factionsCache[name] = {}
-		local faction = factionsCache[name]
-		faction.low = low
-		faction.high = high
-		faction.value = value
-		faction.standing = standing
-		faction.coloredName = GetStandingColoredName(standing, name) -- TODO: figure something out for friendships
-		faction.id = id
-	end
-end
-
 local function ScanFactions(event)
 	for i = 1, GetNumFactions() do
-		local name, _, standingID, low, high, value, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
-		--local _, _, _, _, _, _, reaction = GetFriendshipReputation(id)
+		local name, _, _, _, _, _, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
 
 		if (not isHeader or isHeader and hasRep) then
-			AddFaction(name, low, high, value, --[[reaction or]] standingID, id)
+			factionIDs[name] = id
+			Debug("|cff00ff00Added|r", name, id)
 		else
-			Debug("|cffff0000Skipped|r", name)
+			Debug("|cffff0000Skipped|r", name, id)
 		end
 	end
 
@@ -181,9 +170,9 @@ local function ScanFactions(event)
 end
 
 local function UpdateInstanceGain(faction, value)
-	local name = currentInstanceName
-	db.instanceGainList[name] = db.instanceGainList[name] or {}
-	db.instanceGainList[name][faction] = (db.instanceGainList[name][faction] or 0) + value
+	local instance = currentInstanceName
+	db.instanceGainList[instance] = db.instanceGainList[instance] or {}
+	db.instanceGainList[instance][faction] = (db.instanceGainList[instance][faction] or 0) + value
 end
 
 local function ReportInstanceGain()
@@ -202,9 +191,9 @@ local function ReportInstanceGain()
 end
 
 local function ReportFaction(name, change)
-	local faction = factionsCache[name]
-	faction.value = faction.value + change
-	local low, high, value = faction.low, faction.high, faction.value
+	local id = factionIDs[name]
+	if not id then return ScanFactions() end
+	local _, _, standing, low, high, value = GetFactionInfoByID(id)
 	local reps
 	local color
 	if change > 0 then
@@ -215,7 +204,7 @@ local function ReportFaction(name, change)
 		color = redColor
 	end
 
-	print(format("%s%+d|r %s (%d)", color, change, faction.coloredName, reps))
+	print(format("%s%+d|r %s (%d)", color, change, GetStandingColoredName(standing, name), reps))
 end
 
 local function Command(msg)
@@ -275,10 +264,11 @@ function rainRep:UPDATE_FACTION(event)
 end
 
 function rainRep:PLAYER_GUILD_UPDATE()
-	if (_G.GetGuildInfo("player")) then
-		local name, _, standingID, low, high, value, _, _, _, _, _, _, _, id = GetFactionInfo(2)
-		factionsCache[_G.GUILD] = nil
-		AddFaction(name, low, high, value, standingID, id)
+	local name = _G.GetGuildInfo("player")
+	if (name) then
+		factionIDs[_G.GUILD] = nil
+		factionIDs[name] = 1168
+		Debug("cff00ff00Added|r", name, 1168)
 		self:UnregisterEvent("PLAYER_GUILD_UPDATE")
 	end
 end
