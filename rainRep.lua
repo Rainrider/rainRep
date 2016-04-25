@@ -108,7 +108,7 @@ local defaultDB = {
 	instanceGainList = {},
 }
 
-local factionList = {}
+local factionsCache = {}
 local isInInstance = false
 local currentInstanceName = _G.WORLD
 -----------------------
@@ -137,7 +137,7 @@ local function PrintSortedFactions(tbl)
 	local sortedKeys = SortKeys(tbl)
 	for i = 1, #sortedKeys do
 		local key = sortedKeys[i]
-		print(format("%s: %s", GetStandingColoredName(factionList[key].standing, key), tbl[key]))
+		print(format("%s: %s", GetStandingColoredName(factionsCache[key].standing, key), tbl[key]))
 	end
 end
 
@@ -151,22 +151,27 @@ local function PrintTable(tbl)
 	end
 end
 
-local function AddFaction(name, value, standing)
-	if (not factionList[name]) then
-		factionList[name] = {}
-		factionList[name].value = value
-		factionList[name].standing = standing
-		Debug("|cff00ff00Added|r", name, value, standing)
+local function AddFaction(name, low, high, value, standing, id)
+	if (not factionsCache[name]) then
+		Debug("|cff00ff00Adding|r", name, low, high, value, standing, id)
+		factionsCache[name] = {}
+		local faction = factionsCache[name]
+		faction.low = low
+		faction.high = high
+		faction.value = value
+		faction.standing = standing
+		faction.coloredName = GetStandingColoredName(standing, name) -- TODO: figure something out for friendships
+		faction.id = id
 	end
 end
 
 local function ScanFactions(event)
 	for i = 1, GetNumFactions() do
-		local name, _, standingID, _, _, barValue, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
-		local _, _, _, _, _, _, reaction = GetFriendshipReputation(id)
+		local name, _, standingID, low, high, value, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
+		--local _, _, _, _, _, _, reaction = GetFriendshipReputation(id)
 
 		if (not isHeader or isHeader and hasRep) then
-			AddFaction(name, barValue, reaction or standingID)
+			AddFaction(name, low, high, value, --[[reaction or]] standingID, id)
 		else
 			Debug("|cffff0000Skipped|r", name)
 		end
@@ -196,86 +201,21 @@ local function ReportInstanceGain()
 	end
 end
 
-local function Report()
-	for i = 1, GetNumFactions() do
-		local name, _, standingID, barMin, barMax, barValue, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
-		local _, _, _, _, _, _, reaction, threshold, nextThreshold = GetFriendshipReputation(id)
-
-		if (not reaction and factionList[name]) then
-			local diff = barValue - factionList[name].value
-
-			if (diff ~= 0) then
-				--if (isInInstance) then
-					UpdateInstanceGain(name, diff)
-				--end
-
-				if (standingID ~= factionList[name].standing) then
-					local message = format(_G["FACTION_STANDING_CHANGED"], standingTexts[standingID], GetStandingColoredName(standingID, name))
-					print(message)
-				end
-
-				local nextStanding, remaining, changeColor
-
-				if (diff > 0) then -- reputation gain
-					remaining = barMax - barValue
-					changeColor = greenColor
-
-					if (standingID < standingMaxID) then
-						nextStanding = GetStandingColoredName(standingID + 1, standingTexts[standingID + 1])
-					else
-						nextStanding = format("%s %s", L["the end of"], GetStandingColoredName(standingMaxID, standingTexts[standingMaxID]))
-					end
-				else -- reputaion loss
-					remaining = barValue - barMin
-					changeColor = redColor
-
-					if (standingID > standingMinID) then
-						nextStanding = GetStandingColoredName(standingID - 1, standingTexts[standingID - 1])
-					else
-						nextStanding = format("%s %s", L["the beginning of"], GetStandingColoredName(standingMinID, standingTexts[standingMinID]))
-					end
-				end
-
-				-- calculate repetitions
-				local repetitions = ceil(remaining / abs(diff))
-
-				-- TODO: message should go into L
-				-- +15 RepName. 150 more to nextstanding (10 repetitions)
-				local message = format("%s%+d|r %s. %s%d|r %s %s (%d %s)", changeColor, diff, GetStandingColoredName(standingID, name), changeColor, remaining, L["more to"], nextStanding, repetitions, L["repetitions"])
-				print(message)
-
-				factionList[name].standing = standingID
-				factionList[name].value = barValue
-			end
-		elseif (reaction and factionList[name]) then
-			local diff = barValue - factionList[name].value
-
-			if (diff ~= 0) then
-				if (reaction ~= factionList[name].standing) then
-					print(format(_G["FRIENDSHIP_STANDING_CHANGED"], name, reaction))
-					factionList[name].standing = reaction
-				end
-
-				local remaining, changeColor
-
-				if (diff > 0) then
-					-- nextThreshold is nil when friendship is maxed out (5 X 8400 = 42000 but max is 42999)
-					nextThreshold = nextThreshold or 42999
-					remaining = nextThreshold - barValue
-					changeColor = greenColor
-				else
-					remaining = barValue - threshold
-					changeColor = redColor
-				end
-
-				local repetitions = ceil(remaining / abs(diff))
-				print(format("%+d %s. %s%d|r (%d %s)", diff, name, changeColor, remaining, repetitions, L["repetitions"]))
-				factionList[name].value = barValue
-			end
-		elseif (not isHeader or isHeader and hasRep) then
-			AddFaction(name, barValue, reaction or standingID)
-		end
+local function ReportFaction(name, change)
+	local faction = factionsCache[name]
+	faction.value = faction.value + change
+	local low, high, value = faction.low, faction.high, faction.value
+	local reps
+	local color
+	if change > 0 then
+		reps = ceil((high - value) / change)
+		color = greenColor
+	else
+		reps = ceil((value - low) / abs(change))
+		color = redColor
 	end
+
+	print(format("%s%+d|r %s (%d)", color, change, faction.coloredName, reps))
 end
 
 local function Command(msg)
@@ -336,9 +276,9 @@ end
 
 function rainRep:PLAYER_GUILD_UPDATE()
 	if (_G.GetGuildInfo("player")) then
-		local name, _, standingID, _, _, value = GetFactionInfo(2)
-		factionList[_G.GUILD] = nil
-		AddFaction(name, value, standingID)
+		local name, _, standingID, low, high, value, _, _, _, _, _, _, _, id = GetFactionInfo(2)
+		factionsCache[_G.GUILD] = nil
+		AddFaction(name, low, high, value, standingID, id)
 		self:UnregisterEvent("PLAYER_GUILD_UPDATE")
 	end
 end
@@ -352,9 +292,9 @@ function rainRep:CHAT_MSG_COMBAT_FACTION_CHANGE(_, msg) -- args: event, message
 			local value = matches[data.value]
 			if value then
 				value = value * (data.mult or 1)
+				ReportFaction(faction, value)
 			end
-			print(format("%s: %s%d|r", faction, value >= 0 and greenColor or redColor, value))
+			break
 		end
 	end
-	--Report()
 end
