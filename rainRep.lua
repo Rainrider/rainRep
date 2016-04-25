@@ -20,6 +20,10 @@ local GetFriendshipReputation = _G.GetFriendshipReputation
 
 local matchData = {
 	-- global string // match order
+	[_G.FRIENDSHIP_STANDING_CHANGED] = {
+		enUS = {name = 1, standing = 2}, -- "Your relationship with %s is now %s."
+		deDE = {name = 2, standing = 1},
+	},
 	[_G.FACTION_STANDING_CHANGED] = {
 		enUS = {standing = 1, name = 2}, -- "You are now %s with %s."
 		deDE = {standing = 2, name = 1},
