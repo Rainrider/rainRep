@@ -260,12 +260,12 @@ local function ShowTooltip(tt)
 				tt:AddLine(" ")
 			end
 		end
-		tt:AddLine("|cff0099ccAlt+Click|r to reset")
+		tt:AddLine(L["|cff0099ccAlt+Click|r to reset"])
 	end
 end
 
 local function OnClick()
-	if IsAltKeyDown() then
+	if _G.IsAltKeyDown() then
 		wipe(db.instanceGainList)
 	end
 end
