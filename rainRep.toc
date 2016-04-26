@@ -1,6 +1,6 @@
-## Interface: 50400
+## Interface: 60200
 ## Title: rainRep
-## Version: Beta 1.0
+## Version: Beta 2.0
 ## Author: Rainrider
 ## Notes: Prints better reps
 
@@ -8,7 +8,7 @@
 
 ## SavedVariablesPerCharacter: rainRepDB
 
-## X-Credits: Nirek, Silverwind, dridzt
+## X-Credits: Vladinator
 ## X-Website: https://github.com/Rainrider/rainRep
 
 localization.lua
