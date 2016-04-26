@@ -229,6 +229,47 @@ local function Command(msg)
 	end
 end
 
+local function ShowTooltip(tt)
+	local list = db.instanceGainList
+	tt:SetText(coloredAddonName)
+	tt:AddLine(" ")
+	if not next(list) then
+		return tt:AddLine(L["No reputation changes."])
+	else
+		local sortedInstances = SortKeys(list)
+		for i = 1, #sortedInstances do
+			local instance = sortedInstances[i]
+			local data = list[instance]
+			if next(data) then
+				tt:AddLine(instance)
+				local sortedFactions = SortKeys(data)
+				for j = 1, #sortedFactions do
+					local faction = sortedFactions[j]
+					local value = data[faction]
+					local _, _, standing = GetFactionInfoByID(factionIDs[faction])
+					local color = standingColors[standing]
+					local lr, lg, lb = color.r, color.g, color.b
+					local rr, rg, rb
+					if value > 0 then
+						rr, rg, rb = 0, 1, 0
+					else
+						rr, rg, rb = 1, 0, 0
+					end
+					tt:AddDoubleLine("   "..faction, value, lr, lg, lb, rr, rg, rb)
+				end
+				tt:AddLine(" ")
+			end
+		end
+		tt:AddLine("|cff0099ccAlt+Click|r to reset")
+	end
+end
+
+local function OnClick()
+	if IsAltKeyDown() then
+		wipe(db.instanceGainList)
+	end
+end
+
 local rainRep = _G.CreateFrame("Frame", "rainRep")
 rainRep:SetScript("OnEvent", function(self, event, ...) self[event](self, event, ...) end)
 rainRep:RegisterEvent("ADDON_LOADED")
@@ -243,6 +284,10 @@ function rainRep:ADDON_LOADED(_, name)
 		-- set saved variables
 		_G.rainRepDB = _G.rainRepDB or {}
 		db = setmetatable(_G.rainRepDB, { __index = defaultDB })
+
+		-- data broker
+		dataobj.OnTooltipShow = ShowTooltip
+		dataobj.OnClick = OnClick
 
 		-- events
 		self:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -293,6 +338,7 @@ function rainRep:CHAT_MSG_COMBAT_FACTION_CHANGE(_, msg) -- args: event, message
 			elseif value then
 				value = value * (data.mult or 1)
 				ReportFaction(faction, value)
+				UpdateInstanceGain(faction, value) -- TODO: base on instance or session?
 			end
 			break
 		end
