@@ -120,6 +120,11 @@ if _G.AdiDebug then
 	Debug = _G.AdiDebug:Embed({}, addon)
 end
 
+local dataobj = _G.LibStub("LibDataBroker-1.1"):NewDataObject("Broker_rainRep", {
+    type = "data source",
+    label = coloredAddonName,
+})
+
 local function GetStandingColoredName(standingID, name)
 	local color = standingColors[standingID]
 	return format("|cff%02x%02x%02x%s|r", color.r * 255, color.g * 255, color.b * 255, name)
@@ -204,7 +209,9 @@ local function ReportFaction(name, change)
 		color = redColor
 	end
 
-	print(format("%s%+d|r %s (%d)", color, change, GetStandingColoredName(standing, name), reps))
+	local text = format("%s%+d|r %s (%d)", color, change, GetStandingColoredName(standing, name), reps)
+	dataobj.text = text;
+	print(text)
 end
 
 local function Command(msg)
