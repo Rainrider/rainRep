@@ -163,7 +163,7 @@ local function ScanFactions(event)
 	for i = 1, GetNumFactions() do
 		local name, _, _, _, _, _, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
 
-		if (not isHeader or isHeader and hasRep) then
+		if (name and (not isHeader or isHeader and hasRep)) then
 			factionIDs[name] = id
 			Debug("|cff00ff00Added|r", name, id)
 		else
