@@ -227,7 +227,7 @@ local function Command(msg)
 	elseif (msg == "scan") then
 		ScanFactions("scan")
 	else
-		print(format("%s: %s%s|r %s", coloredAddonName, redColor, L["Unknown command:"], msg))
+		print(format("%s: %s:%s|r %s", coloredAddonName, redColor, L["Unknown command"], msg))
 	end
 end
 
@@ -236,7 +236,8 @@ local function ShowTooltip(tt)
 	tt:SetText(_G.COMBAT_TEXT_SHOW_REPUTATION_TEXT)
 	tt:AddLine(" ")
 	if not next(list) then
-		return tt:AddLine(L["No reputation changes."])
+		tt:AddLine(_G.NONE)
+		tt:AddLine(" ")
 	else
 		local sortedInstances = SortKeys(list)
 		for i = 1, #sortedInstances do
@@ -262,13 +263,17 @@ local function ShowTooltip(tt)
 				tt:AddLine(" ")
 			end
 		end
-		tt:AddLine(L["|cff0099ccAlt+Click|r to reset"])
+		tt:AddLine(format("|cff0099cc%s:|r |cffffffff%s|r"), L["Alt-Click"], _G.RESET)
 	end
+
+	tt:AddLine(format("|cff0099cc%s:|r |cffffffff%s|r", L["Click"], _G.BINDING_NAME_TOGGLECHARACTER2))
 end
 
 local function OnClick()
 	if _G.IsAltKeyDown() then
 		wipe(db.instanceGainList)
+	else
+		ToggleCharacter("ReputationFrame")
 	end
 end
 
