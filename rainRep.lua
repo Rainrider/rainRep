@@ -173,6 +173,7 @@ local function ScanFactions(event)
 		end
 	end
 
+	factionIDs[_G.GUILD] = GUILD_FACTION_ID -- Just always add the damn guild
 	Debug("Scanning factions done at", event)
 end
 
@@ -198,7 +199,7 @@ local function ReportInstanceGain()
 end
 
 local function ReportFaction(name, change)
-	local id = name == _G.GUILD and GUILD_FACTION_ID or factionIDs[name]
+	local id = factionIDs[name]
 	if not id then return ScanFactions() end
 	local _, _, standing, low, high, value = GetFactionInfoByID(id)
 	local reps
@@ -328,7 +329,6 @@ end
 function rainRep:PLAYER_GUILD_UPDATE()
 	local name = _G.GetGuildInfo("player")
 	if (name) then
-		factionIDs[_G.GUILD] = nil
 		factionIDs[name] = GUILD_FACTION_ID
 		Debug("cff00ff00Added|r", name, GUILD_FACTION_ID)
 		self:UnregisterEvent("PLAYER_GUILD_UPDATE")
