@@ -264,7 +264,7 @@ local function ShowTooltip(tt)
 				tt:AddLine(" ")
 			end
 		end
-		tt:AddLine(format("|cff0099cc%s:|r |cffffffff%s|r"), L["Alt-Click"], _G.RESET)
+		tt:AddLine(format("|cff0099cc%s:|r |cffffffff%s|r", L["Alt-Click"], _G.RESET))
 	end
 
 	tt:AddLine(format("|cff0099cc%s:|r |cffffffff%s|r", L["Click"], _G.BINDING_NAME_TOGGLECHARACTER2))
