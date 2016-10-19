@@ -124,7 +124,7 @@ end
 
 local dataobj = _G.LibStub("LibDataBroker-1.1"):NewDataObject("Broker_rainRep", {
     type = "data source",
-    label = coloredAddonName,
+    label = _G.REPUTATION,
 })
 
 local function GetStandingColoredName(standingID, name)
@@ -233,7 +233,7 @@ end
 
 local function ShowTooltip(tt)
 	local list = db.instanceGainList
-	tt:SetText(coloredAddonName)
+	tt:SetText(_G.COMBAT_TEXT_SHOW_REPUTATION_TEXT)
 	tt:AddLine(" ")
 	if not next(list) then
 		return tt:AddLine(L["No reputation changes."])
