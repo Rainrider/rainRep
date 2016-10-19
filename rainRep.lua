@@ -290,7 +290,10 @@ function rainRep:ADDON_LOADED(_, name)
 
 		-- set saved variables
 		_G.rainRepDB = _G.rainRepDB or {}
-		db = setmetatable(_G.rainRepDB, { __index = defaultDB })
+		db = setmetatable(_G.rainRepDB, { __index = function(t, k)
+			rawset(t, k, defaultDB[k])
+			return t[k]
+		end})
 
 		-- data broker
 		dataobj.OnTooltipShow = ShowTooltip
