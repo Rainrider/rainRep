@@ -19,6 +19,8 @@ local GetFactionInfoByID = _G.GetFactionInfoByID
 local GetNumFactions = _G.GetNumFactions
 local GetFriendshipReputation = _G.GetFriendshipReputation
 
+local GUILD_FACTION_ID = 1168
+
 local matchData = {
 	-- global string // match order
 	[_G.FRIENDSHIP_STANDING_CHANGED] = {
@@ -196,7 +198,7 @@ local function ReportInstanceGain()
 end
 
 local function ReportFaction(name, change)
-	local id = factionIDs[name]
+	local id = name == _G.GUILD and GUILD_FACTION_ID or factionIDs[name]
 	if not id then return ScanFactions() end
 	local _, _, standing, low, high, value = GetFactionInfoByID(id)
 	local reps
@@ -319,8 +321,8 @@ function rainRep:PLAYER_GUILD_UPDATE()
 	local name = _G.GetGuildInfo("player")
 	if (name) then
 		factionIDs[_G.GUILD] = nil
-		factionIDs[name] = 1168
-		Debug("cff00ff00Added|r", name, 1168)
+		factionIDs[name] = GUILD_FACTION_ID
+		Debug("cff00ff00Added|r", name, GUILD_FACTION_ID)
 		self:UnregisterEvent("PLAYER_GUILD_UPDATE")
 	end
 end
