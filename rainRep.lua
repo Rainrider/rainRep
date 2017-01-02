@@ -303,7 +303,6 @@ function rainRep:ADDON_LOADED(_, name)
 		-- events
 		self:RegisterEvent("PLAYER_ENTERING_WORLD")
 		self:RegisterEvent("UPDATE_FACTION")
-		self:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
 
 		self:UnregisterEvent("ADDON_LOADED")
 	end
@@ -335,8 +334,8 @@ function rainRep:PLAYER_GUILD_UPDATE()
 	end
 end
 
-function rainRep:CHAT_MSG_COMBAT_FACTION_CHANGE(_, msg) -- args: event, message
-	local matches
+_G.ChatFrame_AddMessageEventFilter("CHAT_MSG_COMBAT_FACTION_CHANGE", function(_, _, msg)
+	local matches = {}
 	for pattern, data in pairs(matchData) do
 		matches = {match(msg, pattern)}
 		if #matches > 0 then
@@ -353,4 +352,6 @@ function rainRep:CHAT_MSG_COMBAT_FACTION_CHANGE(_, msg) -- args: event, message
 			break
 		end
 	end
-end
+
+	return #matches > 0
+end)
