@@ -14,6 +14,8 @@ local gsub = string.gsub
 local strlower = _G.strlower
 local sort = table.sort
 local wipe = table.wipe
+local CollapseFactionHeader = _G.CollapseFactionHeader
+local ExpandFactionHeader = _G.ExpandFactionHeader
 local GetFactionInfo = _G.GetFactionInfo
 local GetFactionInfoByID = _G.GetFactionInfoByID
 local GetNumFactions = _G.GetNumFactions
@@ -161,19 +163,37 @@ local function PrintTable(tbl)
 	end
 end
 
+local collapsed, scanning = {}
 local function ScanFactions(event)
-	for i = 1, GetNumFactions() do
-		local name, _, _, _, _, _, _, _, isHeader, _, hasRep, _, _, id = GetFactionInfo(i)
+	if scanning then return end
+	scanning = true
+	local i, limit = 1, GetNumFactions()
+	while i <= limit do
+		local name, _, _, _, _, _, _, _, isHeader, isCollapsed, hasRep, _, _, id = GetFactionInfo(i)
+		if isCollapsed then
+			collapsed[#collapsed + 1] = i
+			ExpandFactionHeader(i)
+			limit = GetNumFactions()
+		end
 
-		if (name and (not isHeader or isHeader and hasRep)) then
+		if not isHeader or isHeader and hasRep then
 			factionIDs[name] = id
 			Debug("|cff00ff00Added|r", name, id)
 		else
-			Debug("|cffff0000Skipped|r", name, id)
+			Debug("|cffff0000Skipped|r", name, id, isCollapsed and "(collapsed)" or "(not collapsed)")
+		end
+
+		i = i + 1
+	end
+
+	if #collapsed > 0 then
+		for i = #collapsed, 1, -1 do
+			CollapseFactionHeader(collapsed[i])
 		end
 	end
 
 	factionIDs[_G.GUILD] = GUILD_FACTION_ID -- Just always add the damn guild
+	scanning = nil
 	Debug("Scanning factions done at", event)
 end
 
@@ -280,7 +300,7 @@ local function OnClick()
 	if _G.IsAltKeyDown() then
 		wipe(db.instanceGainList)
 	else
-		ToggleCharacter("ReputationFrame")
+		_G.ToggleCharacter("ReputationFrame")
 	end
 end
 
