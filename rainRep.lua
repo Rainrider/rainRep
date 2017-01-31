@@ -200,7 +200,11 @@ end
 
 local function ReportFaction(name, change)
 	local id = factionIDs[name]
-	if not id then return ScanFactions() end
+	if not id then
+		ScanFactions()
+		id = factionIDs[name]
+		if not id then return end
+	end
 	local _, _, standing, low, high, value = GetFactionInfoByID(id)
 	local reps
 	local color
@@ -215,6 +219,8 @@ local function ReportFaction(name, change)
 	local text = format("%s%+d|r %s (%d)", color, change, GetStandingColoredName(standing, name), reps)
 	dataobj.text = text;
 	print(text)
+
+	return true
 end
 
 local function Command(msg)
@@ -336,6 +342,7 @@ end
 
 _G.ChatFrame_AddMessageEventFilter("CHAT_MSG_COMBAT_FACTION_CHANGE", function(_, _, msg)
 	local matches = {}
+	local filter = false
 	for pattern, data in pairs(matchData) do
 		matches = {match(msg, pattern)}
 		if #matches > 0 then
@@ -346,12 +353,12 @@ _G.ChatFrame_AddMessageEventFilter("CHAT_MSG_COMBAT_FACTION_CHANGE", function(_,
 				print(format("%s - %s"), faction, standing) -- TODO: coloring
 			elseif value then
 				value = value * (data.mult or 1)
-				ReportFaction(faction, value)
+				filter = ReportFaction(faction, value)
 				UpdateInstanceGain(faction, value) -- TODO: base on instance or session?
 			end
 			break
 		end
 	end
 
-	return #matches > 0
+	return filter
 end)
