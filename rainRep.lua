@@ -18,9 +18,11 @@ local CollapseFactionHeader = _G.CollapseFactionHeader
 local ExpandFactionHeader = _G.ExpandFactionHeader
 local GetFactionInfo = _G.GetFactionInfo
 local GetFactionInfoByID = _G.GetFactionInfoByID
+local GetFactionParagonInfo = _G.C_Reputation.GetFactionParagonInfo
 local GetNumFactions = _G.GetNumFactions
 local GetFriendshipReputation = _G.GetFriendshipReputation
 
+local GUILD = _G.GUILD
 local GUILD_FACTION_ID = 1168
 
 local matchData = {
@@ -164,12 +166,14 @@ local function PrintTable(tbl)
 end
 
 local collapsed, scanning = {}
+local paragon = {}
 local function ScanFactions(event)
 	if scanning then return end
 	scanning = true
 	local i, limit = 1, GetNumFactions()
 	while i <= limit do
 		local name, _, _, _, _, _, _, _, isHeader, isCollapsed, hasRep, _, _, id = GetFactionInfo(i)
+
 		if isCollapsed then
 			collapsed[#collapsed + 1] = i
 			ExpandFactionHeader(i)
@@ -179,6 +183,11 @@ local function ScanFactions(event)
 		if not isHeader or isHeader and hasRep then
 			factionIDs[name] = id
 			Debug("|cff00ff00Added|r", name, id)
+			local value = GetFactionParagonInfo(id)
+			if value then
+				paragon[id] = value
+				Debug("Paragon", name, id, value)
+			end
 		else
 			Debug("|cffff0000Skipped|r", name, id, isCollapsed and "(collapsed)" or "(not collapsed)")
 		end
@@ -192,7 +201,7 @@ local function ScanFactions(event)
 		end
 	end
 
-	factionIDs[_G.GUILD] = GUILD_FACTION_ID -- Just always add the damn guild
+	factionIDs[GUILD] = GUILD_FACTION_ID -- Just always add the damn guild
 	scanning = nil
 	Debug("Scanning factions done at", event)
 end
@@ -225,7 +234,20 @@ local function ReportFaction(name, change)
 		id = factionIDs[name]
 		if not id then return end
 	end
-	local _, _, standing, low, high, value = GetFactionInfoByID(id)
+	local _, standing, low, high, value
+
+	if not change then
+		-- check for paragon faction
+		value = paragon[id]
+		if not value then return end
+		change = GetFactionParagonInfo(id) - value
+		value = value + change
+		paragon[id] = value
+		standing, low, high = 8, 0, 10000 -- paragon is only possible at exalted and goes from 0 to 10000 -- TODO check
+	else
+		_, _, standing, low, high, value = GetFactionInfoByID(id)
+	end
+
 	local reps
 	local color
 	if change > 0 then
@@ -253,6 +275,8 @@ local function Command(msg)
 		PrintTable(db)
 	elseif (msg == "scan") then
 		ScanFactions("scan")
+	elseif (msg == "factions") then
+		PrintSortedFactions(factionIDs)
 	else
 		print(format("%s: %s:%s|r %s", coloredAddonName, redColor, L["Unknown command"], msg))
 	end
@@ -342,29 +366,25 @@ end
 function rainRep:UPDATE_FACTION(event)
 	if (GetNumFactions() > 2) then
 		ScanFactions(event)
-		self:UnregisterEvent("UPDATE_FACTION")
-		-- The real guild name becomes available at PLAYER_GUILD_UPDATE
-		-- The guild rep bar is the second faction in the reputation ui if the player is in a guild
-		if (GetFactionInfo(2) == _G.GUILD) then
-			self:RegisterEvent("PLAYER_GUILD_UPDATE")
-		end
+		self:UnregisterEvent(event)
+		self:RegisterEvent("PLAYER_GUILD_UPDATE")
 	end
 end
 
-function rainRep:PLAYER_GUILD_UPDATE()
+function rainRep:PLAYER_GUILD_UPDATE(event)
 	local name = _G.GetGuildInfo("player")
-	if (name) then
+	if (name and not factionIDs[name]) then
 		factionIDs[name] = GUILD_FACTION_ID
-		Debug("cff00ff00Added|r", name, GUILD_FACTION_ID)
-		self:UnregisterEvent("PLAYER_GUILD_UPDATE")
+		factionIDs[GUILD] = GUILD_FACTION_ID
+		Debug("|cff00ff00Added|r", name, GUILD_FACTION_ID)
+		self:UnregisterEvent(event)
 	end
 end
 
 _G.ChatFrame_AddMessageEventFilter("CHAT_MSG_COMBAT_FACTION_CHANGE", function(_, _, msg)
-	local matches = {}
 	local filter = false
 	for pattern, data in pairs(matchData) do
-		matches = {match(msg, pattern)}
+		local matches = {match(msg, pattern)}
 		if #matches > 0 then
 			local faction = matches[data.name]
 			local value = matches[data.value]
@@ -375,6 +395,8 @@ _G.ChatFrame_AddMessageEventFilter("CHAT_MSG_COMBAT_FACTION_CHANGE", function(_,
 				value = value * (data.mult or 1)
 				filter = ReportFaction(faction, value)
 				UpdateInstanceGain(faction, value) -- TODO: base on instance or session?
+			else -- we only got the faction
+				filter = ReportFaction(faction)
 			end
 			break
 		end
