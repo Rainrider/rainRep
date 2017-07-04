@@ -103,6 +103,7 @@ local standingColors = {}
 for i = standingMinID, standingMaxID do
 	standingColors[i] = _G.FACTION_BAR_COLORS[i]
 end
+standingColors[9] = {r = 0, g = 0.5, b = 0.9} -- fake paragon standing
 
 local redColor = "|cffff0000"
 local greenColor = "|cff00ff00"
@@ -166,7 +167,6 @@ local function PrintTable(tbl)
 end
 
 local collapsed, scanning = {}
-local paragon = {}
 local function ScanFactions(event)
 	if scanning then return end
 	scanning = true
@@ -183,11 +183,6 @@ local function ScanFactions(event)
 		if not isHeader or isHeader and hasRep then
 			factionIDs[name] = id
 			Debug("|cff00ff00Added|r", name, id)
-			local value = GetFactionParagonInfo(id)
-			if value then
-				paragon[id] = value
-				Debug("Paragon", name, id, value)
-			end
 		else
 			Debug("|cffff0000Skipped|r", name, id, isCollapsed and "(collapsed)" or "(not collapsed)")
 		end
@@ -234,27 +229,23 @@ local function ReportFaction(name, change)
 		id = factionIDs[name]
 		if not id then return end
 	end
-	local _, standing, low, high, value
+	Debug("Reporting", id, name, change)
 
-	if not change then
-		-- check for paragon faction
-		value = paragon[id]
-		if not value then return end
-		change = GetFactionParagonInfo(id) - value
-		value = value + change
-		paragon[id] = value
-		standing, low, high = 8, 0, 10000 -- paragon is only possible at exalted and goes from 0 to 10000 -- TODO check
+	local _, standing, low
+	local value, high = GetFactionParagonInfo(id)
+	if value then
+		value = value % high
+		standing, low = 9, 0 -- fake standing for coloring
 	else
 		_, _, standing, low, high, value = GetFactionInfoByID(id)
 	end
 
-	local reps
-	local color
+	local reps, color
 	if change > 0 then
 		reps = ceil((high - value) / change)
 		color = greenColor
 	else
-		reps = ceil((value - low) / abs(change))
+		reps = ceil((value - low) / -change)
 		color = redColor
 	end
 
@@ -390,13 +381,12 @@ _G.ChatFrame_AddMessageEventFilter("CHAT_MSG_COMBAT_FACTION_CHANGE", function(_,
 			local value = matches[data.value]
 			local standing = matches[data.standing]
 			if standing then
-				print(format("%s - %s"), faction, standing) -- TODO: coloring
+				print(format("%s - %s"), faction, standing) -- TODO: coloring, paragon
+				filter = true
 			elseif value then
 				value = value * (data.mult or 1)
 				filter = ReportFaction(faction, value)
 				UpdateInstanceGain(faction, value) -- TODO: base on instance or session?
-			else -- we only got the faction
-				filter = ReportFaction(faction)
 			end
 			break
 		end
