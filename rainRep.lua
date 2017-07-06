@@ -2,6 +2,9 @@ local addon, ns = ...	-- load the namespace
 local L = ns.L			-- load the localization table
 local locale = _G.GetLocale()
 
+local OUTPUT = "%s%+d|r %s (%d) %s" -- color, change, faction, reps, suffix
+local REWARD_ATLAS = "ParagonReputation_Bag"
+
 local standingMaxID = 8
 local standingMinID = 1
 
@@ -231,11 +234,13 @@ local function ReportFaction(name, change)
 	end
 	Debug("Reporting", id, name, change)
 
-	local _, standing, low
-	local value, high = GetFactionParagonInfo(id)
+	local standing, low, suffix, _ = 9, 0, "" -- defaults for paragon factions
+	local value, high, _, hasRewardPending = GetFactionParagonInfo(id)
 	if value then
 		value = value % high
-		standing, low = 9, 0 -- fake standing for coloring
+		if hasRewardPending then
+			suffix = format("|A:%s:0:0:0:0|a", REWARD_ATLAS)
+		end
 	else
 		_, _, standing, low, high, value = GetFactionInfoByID(id)
 	end
@@ -249,7 +254,7 @@ local function ReportFaction(name, change)
 		color = redColor
 	end
 
-	local text = format("%s%+d|r %s (%d)", color, change, GetStandingColoredName(standing, name), reps)
+	local text = format(OUTPUT, color, change, GetStandingColoredName(standing, name), reps, suffix)
 	dataobj.text = text;
 	print(text)
 
