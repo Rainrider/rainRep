@@ -7,9 +7,6 @@ local PARAGON_SUFFIX = "|A:ParagonReputation_Bag:0:0:0:0|a"
 local BONUS_SUFFIX = "|TInterface\\Common\\ReputationStar:0:0:0:0:32:32:0:16:0:16|t"
 local NO_BONUS_SUFFIX = "|TInterface\\Common\\ReputationStar:0:0:0:0:32:32:0:16:16:32|t"
 
-local standingMaxID = 8
-local standingMinID = 1
-
 local _G = _G
 local abs = math.abs
 local ceil = math.ceil
@@ -99,16 +96,16 @@ end
 
 -- get the standing text table
 local standingTexts = {}
-for i = standingMinID, standingMaxID do
+for i = 1, _G.MAX_REPUTATION_REACTION do
 	standingTexts[i] = _G.GetText("FACTION_STANDING_LABEL" .. i, _G.UnitSex("player"))
 end
 
 -- get the faction color table
 local standingColors = {}
-for i = standingMinID, standingMaxID do
+for i = 1, _G.MAX_REPUTATION_REACTION do
 	standingColors[i] = _G.FACTION_BAR_COLORS[i]
 end
-standingColors[9] = {r = 0, g = 0.5, b = 0.9} -- fake paragon standing
+standingColors[_G.MAX_REPUTATION_REACTION + 1] = {r = 0, g = 0.5, b = 0.9} -- fake paragon standing
 
 local redColor = "|cffff0000"
 local greenColor = "|cff00ff00"
