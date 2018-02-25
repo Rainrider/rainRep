@@ -179,7 +179,7 @@ local function ScanFactions(event)
 
 		if isHeader and name == allegiance then
 			isInFactionGroup = true
-		elseif isHeader and isInFactionGroup then -- or last index?
+		elseif isHeader and isInFactionGroup then
 			isInFactionGroup = false
 		end
 
@@ -293,9 +293,9 @@ local function ReportFaction(name, change)
 
 	local id = factionIDs[name]
 	if not id then
-		ScanFactions()
-		id = factionIDs[name]
-		if not id then return end
+		C_Timer.After(2, ScanFactions)
+		C_Timer.After(3, function() return ReportFaction(name, change) end)
+		return true
 	end
 
 	local suffix = ""
