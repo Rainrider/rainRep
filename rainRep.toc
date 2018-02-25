@@ -1,11 +1,9 @@
-## Interface: 70100
+## Interface: 70300
 ## Title: rainRep
-## Version: Beta 2.0
+## Version: @project-version@
 ## Author: Rainrider
-## Notes: Prints better reps
-
+## Notes: Outputs reputation changes and repetitions until the next standing in chat.
 ## OptionalDeps: AdiDebug
-
 ## SavedVariablesPerCharacter: rainRepDB
 
 ## X-Credits: Vladinator
