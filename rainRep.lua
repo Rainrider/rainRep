@@ -122,9 +122,7 @@ local factionIDs = {}
 local currentInstanceName = _G.WORLD
 local bonusFactionID = nil
 local numKnownBonusFactions = 0
------------------------
--- Utility Functions --
------------------------
+
 local Debug = function() end
 if _G.AdiDebug then
 	Debug = _G.AdiDebug:Embed({}, addon)
@@ -169,13 +167,21 @@ local function PrintTable(tbl)
 	end
 end
 
-local collapsed, scanning = {}
+local factionGroup, collapsed, allegiance, scanning, _ = {}, {}, nil, nil, nil
 local function ScanFactions(event)
 	if scanning then return end
 	scanning = true
+	_, allegiance = UnitFactionGroup("player")
 	local i, limit = 1, GetNumFactions()
+	local isInFactionGroup = false
 	while i <= limit do
-		local name, _, _, _, _, _, _, _, isHeader, isCollapsed, hasRep, _, _, id = GetFactionInfo(i)
+		local name, _, _, _, _, value, _, _, isHeader, isCollapsed, hasRep, _, _, id = GetFactionInfo(i)
+
+		if isHeader and name == allegiance then
+			isInFactionGroup = true
+		elseif isHeader and isInFactionGroup then -- or last index?
+			isInFactionGroup = false
+		end
 
 		if isCollapsed then
 			collapsed[#collapsed + 1] = i
@@ -186,8 +192,13 @@ local function ScanFactions(event)
 		if not isHeader or isHeader and hasRep then
 			factionIDs[name] = id
 			Debug("|cff00ff00Added|r", name, id)
+
+			if isInFactionGroup then
+				factionGroup[name] = value
+				Debug(allegiance, name, value)
+			end
 		else
-			Debug("|cffff0000Skipped|r", name, id, isCollapsed and "(collapsed)" or "(not collapsed)")
+			Debug("|cffff0000Skipped|r", name, id, isCollapsed and "(" or  "(not " .. "collapsed)")
 		end
 
 		i = i + 1
@@ -244,14 +255,48 @@ local function ReportInstanceGain()
 	end
 end
 
+local function ReportNumbers(name, change, standing, low, high, value, suffix)
+	Debug("Reporting", id, name, change)
+	local reps, color
+	if change > 0 then
+		reps = ceil((high - value) / change)
+		color = greenColor
+	else
+		reps = ceil((value - low) / -change)
+		color = redColor
+	end
+
+	local text = format(OUTPUT, color, change, GetStandingColoredName(standing, name), reps, suffix)
+	dataobj.text = text;
+	print(text)
+end
+
+local function ReportFactionGroup()
+	for name, oldValue in next, factionGroup do
+		local id = factionIDs[name]
+		local _, _, standing, low, high, value = GetFactionInfoByID(id)
+		local change = value - oldValue
+		if change ~= 0 then
+			ReportNumbers(name, change, standing, low, high, value, "")
+			factionGroup[name] = value
+		else
+			Debug(allegiance, name, 'not changed', oldValue, value)
+		end
+	end
+end
+
 local function ReportFaction(name, change)
+	if name == allegiance then
+		C_Timer.After(2, ReportFactionGroup)
+		return true
+	end
+
 	local id = factionIDs[name]
 	if not id then
 		ScanFactions()
 		id = factionIDs[name]
 		if not id then return end
 	end
-	Debug("Reporting", id, name, change)
 
 	local suffix = ""
 	local standing, low = 9, 0 -- defaults for paragon factions
@@ -273,19 +318,7 @@ local function ReportFaction(name, change)
 		end
 	end
 
-	local reps, color
-	if change > 0 then
-		reps = ceil((high - value) / change)
-		color = greenColor
-	else
-		reps = ceil((value - low) / -change)
-		color = redColor
-	end
-
-	local text = format(OUTPUT, color, change, GetStandingColoredName(standing, name), reps, suffix)
-	dataobj.text = text;
-	print(text)
-
+	ReportNumbers(name, change, standing, low, high, value, suffix)
 	return true
 end
 
@@ -301,6 +334,8 @@ local function Command(msg)
 		ScanFactions("scan")
 	elseif (msg == "factions") then
 		PrintSortedFactions(factionIDs)
+	elseif (msg == "group") then
+		ReportFactionGroup()
 	else
 		print(format("%s: %s:%s|r %s", coloredAddonName, redColor, L["Unknown command"], msg))
 	end
@@ -382,7 +417,7 @@ function rainRep:ADDON_LOADED(_, name)
 	end
 end
 
-function rainRep:PLAYER_ENTERING_WORLD()
+function rainRep:PLAYER_ENTERING_WORLD(event)
 	UpdateInstanceInfo()
 	self:RegisterEvent("LFG_BONUS_FACTION_ID_UPDATED")
 end
