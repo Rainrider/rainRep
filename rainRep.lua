@@ -411,37 +411,26 @@ function rainRep:ADDON_LOADED(_, name)
 
 		-- events
 		self:RegisterEvent("PLAYER_ENTERING_WORLD")
-		self:RegisterEvent("UPDATE_FACTION")
 
 		self:UnregisterEvent("ADDON_LOADED")
 	end
 end
 
 function rainRep:PLAYER_ENTERING_WORLD(event)
+	ScanFactions(event)
 	UpdateInstanceInfo()
 	self:RegisterEvent("LFG_BONUS_FACTION_ID_UPDATED")
+	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+
+	self:UnregisterEvent("PLAYER_ENTERING_WORLD")
+end
+
+function rainRep:ZONE_CHANGED_NEW_AREA(event)
+	UpdateInstanceInfo()
 end
 
 function rainRep:LFG_BONUS_FACTION_ID_UPDATED()
 	UpdateInstanceInfo()
-end
-
-function rainRep:UPDATE_FACTION(event)
-	if (GetNumFactions() > 2) then
-		ScanFactions(event)
-		self:UnregisterEvent(event)
-		self:RegisterEvent("PLAYER_GUILD_UPDATE")
-	end
-end
-
-function rainRep:PLAYER_GUILD_UPDATE(event)
-	local name = _G.GetGuildInfo("player")
-	if (name and not factionIDs[name]) then
-		factionIDs[name] = GUILD_FACTION_ID
-		factionIDs[GUILD] = GUILD_FACTION_ID
-		Debug("|cff00ff00Added|r", name, GUILD_FACTION_ID)
-		self:UnregisterEvent(event)
-	end
 end
 
 _G.ChatFrame_AddMessageEventFilter("CHAT_MSG_COMBAT_FACTION_CHANGE", function(_, _, msg)
