@@ -6,21 +6,20 @@ local OUTPUT = "%s%+d|r %s (%d) %s" -- color, change, faction, reps, suffix
 local PARAGON_SUFFIX = "|A:ParagonReputation_Bag:0:0:0:0|a"
 
 local _G = _G
-local abs = math.abs
 local ceil = math.ceil
 local format = string.format
 local match = string.match
 local gsub = string.gsub
 local strlower = _G.strlower
 local sort = table.sort
-local wipe = table.wipe
+local wipe = _G.table.wipe
 local CollapseFactionHeader = _G.CollapseFactionHeader
 local ExpandFactionHeader = _G.ExpandFactionHeader
 local GetFactionInfo = _G.GetFactionInfo
 local GetFactionInfoByID = _G.GetFactionInfoByID
 local GetFactionParagonInfo = _G.C_Reputation.GetFactionParagonInfo
 local GetNumFactions = _G.GetNumFactions
-local GetFriendshipReputation = _G.GetFriendshipReputation
+local UnitFactionGroup = _G.UnitFactionGroup
 
 local GUILD = _G.GUILD
 local GUILD_FACTION_ID = 1168
@@ -90,12 +89,6 @@ do
 	end
 
 	matchData = patternData
-end
-
--- get the standing text table
-local standingTexts = {}
-for i = 1, _G.MAX_REPUTATION_REACTION do
-	standingTexts[i] = _G.GetText("FACTION_STANDING_LABEL" .. i, _G.UnitSex("player"))
 end
 
 -- get the faction color table
@@ -237,7 +230,7 @@ local function ReportInstanceGain()
 end
 
 local function ReportNumbers(name, change, standing, low, high, value, suffix)
-	Debug("Reporting", id, name, change)
+	Debug("Reporting", name, change)
 	local reps, color
 	if change > 0 then
 		reps = ceil((high - value) / change)
@@ -268,14 +261,14 @@ end
 
 local function ReportFaction(name, change)
 	if name == allegiance then
-		C_Timer.After(2, ReportFactionGroup)
+		_G.C_Timer.After(2, ReportFactionGroup)
 		return true
 	end
 
 	local id = factionIDs[name]
 	if not id then
-		C_Timer.After(2, ScanFactions)
-		C_Timer.After(3, function() return ReportFaction(name, change) end)
+		_G.C_Timer.After(2, ScanFactions)
+		_G.C_Timer.After(3, function() return ReportFaction(name, change) end)
 		return true
 	end
 
@@ -397,7 +390,7 @@ function rainRep:PLAYER_ENTERING_WORLD(event)
 	self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 end
 
-function rainRep:ZONE_CHANGED_NEW_AREA(event)
+function rainRep:ZONE_CHANGED_NEW_AREA()
 	UpdateInstanceInfo()
 end
 
