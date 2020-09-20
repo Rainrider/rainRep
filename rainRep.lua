@@ -4,8 +4,6 @@ local locale = _G.GetLocale()
 
 local OUTPUT = "%s%+d|r %s (%d) %s" -- color, change, faction, reps, suffix
 local PARAGON_SUFFIX = "|A:ParagonReputation_Bag:0:0:0:0|a"
-local BONUS_SUFFIX = "|TInterface\\Common\\ReputationStar:0:0:0:0:32:32:0:16:0:16|t"
-local NO_BONUS_SUFFIX = "|TInterface\\Common\\ReputationStar:0:0:0:0:32:32:0:16:16:32|t"
 
 local _G = _G
 local abs = math.abs
@@ -120,8 +118,6 @@ local defaultDB = {
 
 local factionIDs = {}
 local currentInstanceName = _G.WORLD
-local bonusFactionID = nil
-local numKnownBonusFactions = 0
 
 local Debug = function() end
 if _G.AdiDebug then
@@ -216,22 +212,7 @@ local function ScanFactions(event)
 end
 
 local function UpdateInstanceInfo()
-	if (_G.IsInInstance()) then
-		local name, _, _, _, _, _, _, _, _, lfgID = _G.GetInstanceInfo()
-		if (lfgID) then
-			local bonusRepAmount = select(16, _G.GetLFGDungeonInfo(lfgID))
-			local isDone = _G.GetLFGDungeonRewards(lfgID)
-			if (bonusRepAmount and bonusRepAmount > 0 and not isDone) then
-				bonusFactionID, numKnownBonusFactions = _G.GetLFGBonusFactionID()
-			end
-		else
-			bonusFactionID, numKnownBonusFactions = nil, 0
-		end
-
-		currentInstanceName = name
-	else
-		currentInstanceName = _G.WORLD
-	end
+	currentInstanceName = _G.IsInInstance() and _G.GetInstanceInfo() or _G.WORLD
 end
 
 local function UpdateInstanceGain(faction, value)
@@ -308,14 +289,6 @@ local function ReportFaction(name, change)
 		end
 	else
 		_, _, standing, low, high, value = GetFactionInfoByID(id)
-
-		if (numKnownBonusFactions > 0) then
-			if (id == bonusFactionID) then
-				suffix = BONUS_SUFFIX
-			elseif (not bonusFactionID) then
-				suffix = NO_BONUS_SUFFIX
-			end
-		end
 	end
 
 	ReportNumbers(name, change, standing, low, high, value, suffix)
@@ -419,17 +392,12 @@ end
 function rainRep:PLAYER_ENTERING_WORLD(event)
 	ScanFactions(event)
 	UpdateInstanceInfo()
-	self:RegisterEvent("LFG_BONUS_FACTION_ID_UPDATED")
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 
 	self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 end
 
 function rainRep:ZONE_CHANGED_NEW_AREA(event)
-	UpdateInstanceInfo()
-end
-
-function rainRep:LFG_BONUS_FACTION_ID_UPDATED()
 	UpdateInstanceInfo()
 end
 
