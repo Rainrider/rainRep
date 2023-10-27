@@ -17,7 +17,6 @@ local CollapseFactionHeader = _G.CollapseFactionHeader
 local ExpandFactionHeader = _G.ExpandFactionHeader
 local GetFactionInfo = _G.GetFactionInfo
 local GetFactionInfoByID = _G.GetFactionInfoByID
-local GetFactionParagonInfo = _G.C_Reputation.GetFactionParagonInfo
 local GetNumFactions = _G.GetNumFactions
 local UnitFactionGroup = _G.UnitFactionGroup
 
@@ -159,12 +158,13 @@ end
 local factionGroup, collapsed, allegiance, scanning, _ = {}, {}, nil, nil, nil
 local function ScanFactions(event)
 	if scanning then return end
+
 	scanning = true
 	_, allegiance = UnitFactionGroup("player")
 	local i, limit = 1, GetNumFactions()
 	local isInFactionGroup = false
 	while i <= limit do
-		local name, _, _, _, _, value, _, _, isHeader, isCollapsed, hasRep, _, _, id = GetFactionInfo(i)
+		local name, _, _, _, _, _, _, _, isHeader, isCollapsed, hasRep, _, _, id = GetFactionInfo(i)
 
 		if isHeader and name == allegiance then
 			isInFactionGroup = true
@@ -172,17 +172,20 @@ local function ScanFactions(event)
 			isInFactionGroup = false
 		end
 
+		-- GetNumFactions counts expanded factions only
 		if isCollapsed then
 			collapsed[#collapsed + 1] = i
 			ExpandFactionHeader(i)
 			limit = GetNumFactions()
 		end
 
-		if not isHeader or isHeader and hasRep then
+		if not isHeader or hasRep then
 			factionIDs[name] = id
 			Debug("|cff00ff00Added|r", name, id)
 
+			-- handle cases like 'Your reputation with the Alliance has increased by 75'
 			if isInFactionGroup then
+				local _, _, value = ns:GetFactionValues(id)
 				factionGroup[name] = value
 				Debug(allegiance, name, value)
 			end
@@ -248,10 +251,10 @@ end
 local function ReportFactionGroup()
 	for name, oldValue in next, factionGroup do
 		local id = factionIDs[name]
-		local _, _, standing, low, high, value = GetFactionInfoByID(id)
+		local _, low, value, high, standing = ns:GetFactionValues(id)
 		local change = value - oldValue
 		if change ~= 0 then
-			ReportNumbers(name, change, standing, low, high, value, "")
+			ReportNumbers(name, change, standing, low, high, value, '')
 			factionGroup[name] = value
 		else
 			Debug(allegiance, name, 'not changed', oldValue, value)
@@ -272,17 +275,8 @@ local function ReportFaction(name, change)
 		return true
 	end
 
-	local suffix = ""
-	local standing, low = 9, 0 -- defaults for paragon factions
-	local value, high, _, hasRewardPending = GetFactionParagonInfo(id)
-	if value then
-		value = value % high
-		if hasRewardPending then
-			suffix = PARAGON_SUFFIX
-		end
-	else
-		_, _, standing, low, high, value = GetFactionInfoByID(id)
-	end
+	local _, low, value, high, standing, _, hasPendingAward = ns:GetFactionValues(id)
+	local suffix = hasPendingAward and PARAGON_SUFFIX or ''
 
 	ReportNumbers(name, change, standing, low, high, value, suffix)
 	return true
