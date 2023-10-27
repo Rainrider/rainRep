@@ -283,21 +283,23 @@ local function ReportFaction(name, change)
 end
 
 local function Command(msg)
-	msg = strlower(msg)
-	if (msg == "report") then
+	local command, change, factionName = _G.strsplit(' ', msg, 3)
+	if (command == "report") then
 		ReportInstanceGain()
-	elseif (msg == "reset") then
+	elseif (command == "reset") then
 		wipe(db.instanceGainList)
-	elseif (msg == "db") then
+	elseif (command == "db") then
 		PrintTable(db)
-	elseif (msg == "scan") then
+	elseif (command == "scan") then
 		ScanFactions("scan")
-	elseif (msg == "factions") then
+	elseif (command == "factions") then
 		PrintSortedFactions(factionIDs)
-	elseif (msg == "group") then
+	elseif (command == "group") then
 		ReportFactionGroup()
+	elseif command == 'test' then
+		ReportFaction(factionName, tonumber(change))
 	else
-		print(format("%s: %s:%s|r %s", coloredAddonName, redColor, L["Unknown command"], msg))
+		print(format("%s: %s:%s|r %s", coloredAddonName, redColor, L["Unknown command"], command))
 	end
 end
 
