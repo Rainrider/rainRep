@@ -15,17 +15,3 @@ standing. The amount is either green (gain) or red (loss) and the faction name i
 used in a message filter to figure out the faction with that the player's reputation changed and, if a match was found,
 replace the message with a custom colored one. For this to work, rainRep manages a list of factions the player has
 already encountered and maps each faction name to the corresponding faction ID.
-
-## Current Limitations
-
-**rainRep** relies on how the game communicates reputation changes through the chat system. On rare occasions Blizzard
-reports certain changes by using the name of the reputation header instead of each individual faction, e.g. the Lunar
-Festival quests provide reputation with every Alliance/Horde faction, but the message the client receives is
-`"Reputation with Alliance increased by 75."` Funny enough not every Alliance/Horde faction gets the mentioned 75
-points, and the Pandaren factions, added with Mists of Pandaria, did not get any points at all. In this case, rainRep
-will just show the default message, because it will fail to find a faction named Alliance (or Horde) that is either not
-a header in the default UI or is a header but has points.
-
-**rainRep** does not differentiate between friendships and reputations as this is not required for it to function.
-However this leads to friendships beeing incorrectly colored, because their standing IDs correspond to a different
-reputation standing (standing ID 1 means "Hostile").
