@@ -32,14 +32,14 @@ end
 
 function ns.GetFriendship(_, factionId)
 	local friendship = _G.C_GossipInfo.GetFriendshipReputation(factionId)
-	local name, low, value, high, level, isParagon, _ = nil, nil, nil, nil, nil, nil
+	local name, low, value, high, level, isParagon = nil, nil, nil, nil, nil, nil
 
 	if friendship and friendship.friendshipFactionID == factionId then
 		name = friendship.name
 		low = friendship.reactionThreshold
 		value = friendship.standing
 		high = friendship.nextThreshold or value
-		_, _, level = _G.GetFactionInfoByID(factionId)
+		level = _G.C_Reputation.GetFactionDataByID(factionId).reaction
 		isParagon = false
 	end
 
@@ -71,7 +71,7 @@ function ns.GetParagon(_, factionId)
 	local value, high, _, hasPendingReward = _G.C_Reputation.GetFactionParagonInfo(factionId)
 
 	if nil ~= value then
-		name = _G.GetFactionInfoByID(factionId)
+		name = _G.C_Reputation.GetFactionDataByID(factionId).name
 		low = 0
 		level = 9
 		value = value % high
@@ -87,7 +87,9 @@ function ns:GetReputation(factionId)
 	end
 
 	local isParagon = nil
-	local name, _, level, low, high, value = _G.GetFactionInfoByID(factionId)
+	local faction = _G.C_Reputation.GetFactionDataByID(factionId)
+	local name, level = faction.name, faction.reaction
+	local low, high, value = faction.currentReactionThreshold, faction.nextReactionThreshold, faction.currentStanding
 
 	if nil ~= name then
 		isParagon = false

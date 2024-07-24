@@ -5,19 +5,18 @@ local locale = _G.GetLocale()
 local OUTPUT = "%s%+d|r %s (%d) %s" -- color, change, faction, reps, suffix
 local PARAGON_SUFFIX = "|A:ParagonReputation_Bag:0:0:0:0|a"
 
-local _G = _G
 local ceil = math.ceil
 local format = string.format
 local match = string.match
 local gsub = string.gsub
-local strlower = _G.strlower
+local strsplit = _G.strsplit
 local sort = table.sort
 local wipe = _G.table.wipe
-local CollapseFactionHeader = _G.CollapseFactionHeader
-local ExpandFactionHeader = _G.ExpandFactionHeader
-local GetFactionInfo = _G.GetFactionInfo
-local GetFactionInfoByID = _G.GetFactionInfoByID
-local GetNumFactions = _G.GetNumFactions
+local CollapseFactionHeader = _G.C_Reputation.CollapseFactionHeader
+local ExpandFactionHeader = _G.C_Reputation.ExpandFactionHeader
+local GetFactionDataByIndex = _G.C_Reputation.GetFactionDataByIndex
+local GetFactionDataByID = _G.C_Reputation.GetFactionDataByID
+local GetNumFactions = _G.C_Reputation.GetNumFactions
 local UnitFactionGroup = _G.UnitFactionGroup
 
 local GUILD = _G.GUILD
@@ -29,12 +28,22 @@ local matchData = {
 		enUS = {name = 1, standing = 2}, -- "Your relationship with %s is now %s."
 		deDE = {name = 2, standing = 1},
 	},
+	[_G.FRIENDSHIP_STANDING_CHANGED_ACCOUNT_WIDE] = {
+		enUS = {name = 1, standing = 2}, -- "Your Warband's relationship with %s is now %s."
+		deDE = {name = 2, standing = 1},
+	},
 	[_G.FACTION_STANDING_CHANGED] = {
 		enUS = {standing = 1, name = 2}, -- "You are now %s with %s."
 		deDE = {standing = 2, name = 1},
 		ruRU = {standing = 2, name = 1},
 		zhCH = {standing = 2, name = 1},
 		koKR = {standing = 2, name = 1},
+	},
+	[_G.FACTION_STANDING_CHANGED_ACCOUNT_WIDE] = {
+		enUS = {standing = 1, name = 2}, -- "Your Warband is now %s with %s."
+		deDE = {standing = 2, name = 1},
+		ruRU = {standing = 2, name = 1},
+		zhCH = {standing = 2, name = 1},
 	},
 	[_G.FACTION_STANDING_CHANGED_GUILD] = {
 		enUS = {standing = 1}, -- "You are now %s with your guild."
@@ -46,26 +55,41 @@ local matchData = {
 		zhCH = {standing = 2, name = 1},
 		koKR = {standing = 2, name = 1},
 	},
-	[_G.FACTION_STANDING_INCREASED_DOUBLE_BONUS] = {
-		enUS = {name = 1, value = 2, mult = 1}, -- "Reputation with %s increased by %d. (+%.1f Refer-A-Friend bonus) (+%.1f bonus)"
+	[_G.FACTION_STANDING_INCREASED] = {
+		enUS = {name = 1, value = 2, mult = 1}, -- "Reputation with %s increased by %d."
 	},
-	[_G.FACTION_STANDING_INCREASED_BONUS] = {
-		enUS = {name = 1, value = 2, mult = 1}, -- "Reputation with %s increased by %d. (+%.1f Refer-A-Friend bonus)"
+	[_G.FACTION_STANDING_INCREASED_ACCOUNT_WIDE] = {
+		enUS = {name = 1, value = 2, mult = 1}, --"Your Warband's reputation with %s increased by %d."
 	},
 	[_G.FACTION_STANDING_INCREASED_ACH_BONUS] = {
 		enUS = {name = 1, value = 2, mult = 1}, -- "Reputation with %s increased by %d. (+%.1f bonus)"
 	},
-	[_G.FACTION_STANDING_INCREASED] = {
-		enUS = {name = 1, value = 2, mult = 1}, -- "Reputation with %s increased by %d."
+	[_G.FACTION_STANDING_INCREASED_ACH_BONUS_ACCOUNT_WIDE] = {
+		enUS = {name = 1, value = 2, mult = 1}, -- "Your Warband's reputation with %s increased by %d. (+%.1f bonus)"
+	},
+	[_G.FACTION_STANDING_INCREASED_BONUS] = {
+		enUS = {name = 1, value = 2, mult = 1}, -- "Reputation with %s increased by %d. (+%.1f Refer-A-Friend bonus)"
+	},
+	[_G.FACTION_STANDING_INCREASED_DOUBLE_BONUS] = {
+		enUS = {name = 1, value = 2, mult = 1}, -- "Reputation with %s increased by %d. (+%.1f Refer-A-Friend bonus) (+%.1f bonus)"
 	},
 	[_G.FACTION_STANDING_INCREASED_GENERIC] = {
 		enUS = {name = 1, mult = 1}, -- "Reputation with %s increased."
 	},
+	[_G.FACTION_STANDING_INCREASED_GENERIC_ACCOUNT_WIDE] = {
+		enUS = {name = 1, mult = 1}, -- "Your Warband's reputation with %s increased."
+	},
 	[_G.FACTION_STANDING_DECREASED] = {
 		enUS = {name = 1, value = 2, mult = -1}, -- "Reputation with %s decreased by %d."
 	},
+	[_G.FACTION_STANDING_DECREASED_ACCOUNT_WIDE] = {
+		enUS = {name = 1, value = 2, mult = -1}, -- "Your Warband's reputation with %s decreased by %d."
+	},
 	[_G.FACTION_STANDING_DECREASED_GENERIC] = {
 		enUS = {name = 1, mult = -1}, -- "Reputation with %s decreased."
+	},
+	[_G.FACTION_STANDING_DECREASED_GENERIC_ACCOUNT_WIDE] = {
+		enUS = {name = 1, mult = -1}, -- "Your Warband's reputation with %s decreased."
 	},
 }
 
@@ -140,8 +164,8 @@ local function PrintSortedFactions(tbl)
 	for i = 1, #sortedKeys do
 		local name = sortedKeys[i]
 		local id = factionIDs[name]
-		local _, _, standing = GetFactionInfoByID(id)
-		print(format("%s: %s", GetStandingColoredName(standing, name), tbl[name]))
+		local faction = GetFactionDataByID(id)
+		print(format("%s: %s", GetStandingColoredName(faction.reaction, name), tbl[name]))
 	end
 end
 
@@ -164,7 +188,9 @@ local function ScanFactions(event)
 	local i, limit = 1, GetNumFactions()
 	local isInFactionGroup = false
 	while i <= limit do
-		local name, _, _, _, _, _, _, _, isHeader, isCollapsed, hasRep, _, _, id = GetFactionInfo(i)
+		local faction = GetFactionDataByIndex(i)
+		local isHeader, isCollapsed =  faction.isHeader, faction.isCollapsed
+		local name, id = faction.name, faction.factionID
 
 		if isHeader and name == allegiance then
 			isInFactionGroup = true
@@ -179,7 +205,7 @@ local function ScanFactions(event)
 			limit = GetNumFactions()
 		end
 
-		if not isHeader or hasRep then
+		if not isHeader or faction.isHeaderWithRep then
 			factionIDs[name] = id
 			Debug("|cff00ff00Added|r", name, id)
 
@@ -283,7 +309,7 @@ local function ReportFaction(name, change)
 end
 
 local function Command(msg)
-	local command, change, factionName = _G.strsplit(' ', msg, 3)
+	local command, change, factionName = strsplit(' ', msg, 3)
 	if (command == "report") then
 		ReportInstanceGain()
 	elseif (command == "reset") then
@@ -321,7 +347,7 @@ local function ShowTooltip(tt)
 				for j = 1, #sortedFactions do
 					local faction = sortedFactions[j]
 					local value = data[faction]
-					local _, _, standing = GetFactionInfoByID(factionIDs[faction])
+					local standing = GetFactionDataByID(factionIDs[faction]).reaction
 					local color = standingColors[standing]
 					local lr, lg, lb = color.r, color.g, color.b
 					local rr, rg, rb
