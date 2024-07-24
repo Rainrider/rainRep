@@ -4,6 +4,7 @@ local locale = _G.GetLocale()
 
 local OUTPUT = "%s%+d|r %s (%d) %s" -- color, change, faction, reps, suffix
 local PARAGON_SUFFIX = "|A:ParagonReputation_Bag:0:0:0:0|a"
+local WARBAND_SUFFIX = '|A:warbands-icon:0:0:0:0|a'
 
 local ceil = math.ceil
 local format = string.format
@@ -17,6 +18,7 @@ local ExpandFactionHeader = _G.C_Reputation.ExpandFactionHeader
 local GetFactionDataByIndex = _G.C_Reputation.GetFactionDataByIndex
 local GetFactionDataByID = _G.C_Reputation.GetFactionDataByID
 local GetNumFactions = _G.C_Reputation.GetNumFactions
+local IsAccountWideReputation = _G.C_Reputation.IsAccountWideReputation
 local UnitFactionGroup = _G.UnitFactionGroup
 
 local GUILD = _G.GUILD
@@ -303,6 +305,10 @@ local function ReportFaction(name, change)
 
 	local _, low, value, high, standing, _, hasPendingAward = ns:GetFactionValues(id)
 	local suffix = hasPendingAward and PARAGON_SUFFIX or ''
+	
+	if IsAccountWideReputation(id) then
+		suffix = suffix .. WARBAND_SUFFIX
+	end
 
 	ReportNumbers(name, change, standing, low, high, value, suffix)
 	return true
