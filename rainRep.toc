@@ -1,4 +1,4 @@
-## Interface: 100107
+## Interface: 120001
 ## Title: rainRep
 ## Version: @project-version@
 ## Author: Rainrider
